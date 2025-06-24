@@ -42,7 +42,7 @@ class CarGameAgent(nn.Module):
                 mask = (torch.rand_like(param) < mutation_rate).float()
                 noise = torch.randn_like(param) * mutation_strength
                 param.data += mask * noise
-    def run_in_environment(self, env, visualize=True, threshold=0.5, maxsteps=500, device="cpu"):
+    def run_in_environment(self, env, visualize=True, threshold=0.5, maxsteps=500, device="cuda"):
         """
         Runs the model in the environment once until done.
 
