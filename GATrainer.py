@@ -5,6 +5,7 @@ from agent.device import get_device
 from modelArh import CarGameAgent, Population
 from gym_env_custom import CustomEnvGAWithQuads
 import os
+import copy
 
 # === Environment Parameters ===
 ray_number = 7
@@ -32,13 +33,16 @@ if __name__ == "__main__":
 
     init_population_path = sys.argv[1]
     if init_population_path:
-        population.models=[]
+        population.models.clear()
         for filename in os.listdir(init_population_path):
             if filename.endswith(".pth"):
                 full_path = os.path.join(init_population_path, filename)
                 model=CarGameAgent(n_inputs)
                 model.load_state_dict(torch.load(full_path))
                 population.models.append(model)
+        models_copy=copy.deepcopy(population.models)
+        for i in range(4):
+            population.models.extend(copy.deepcopy(models_copy))
 
     # === GA Loop ===
     for generation in range(num_generations):
@@ -46,6 +50,7 @@ if __name__ == "__main__":
         
         # Evaluate all models
         population.evaluate_gpu(env_fn, 0.5, 900, get_device())
+
         
         # Print best result
         best_model, best_fitness = population.best_model()
