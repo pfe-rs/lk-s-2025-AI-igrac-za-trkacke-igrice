@@ -22,7 +22,7 @@ if use_pygame:
 
 state = env.reset()
 
-maxsteps = 10000
+maxsteps = 1000
 running = True
 
 use_pygame=False

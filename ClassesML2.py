@@ -257,7 +257,39 @@ class Car:
         self.ori+=0.05
         
         
+    def wallinter_gpu(self,walls):
+        """Check if any line of the car intersects with given lines."""
+        cos_ori = math.cos(self.ori)
+        sin_ori = math.sin(self.ori)
+        half_width = self.length / 2
+        half_length = self.width / 2
+
+        # Calculate the four corners of the car
+        corners = [
+            (-half_width, -half_length),  # Top-left
+            (half_width, -half_length),   # Top-right
+            (half_width, half_length),    # Bottom-right
+            (-half_width, half_length)    # Bottom-left
+        ]
+        transformed_corners = [
+            (
+                self.x + x * cos_ori - y * sin_ori,
+                self.y + x * sin_ori + y * cos_ori
+            )
+            for x, y in corners
+        ]
+
+        # Create car edges (lines connecting the corners)
+        carlines = [
+            Line(transformed_corners[i][0], transformed_corners[i][1],
+                transformed_corners[(i + 1) % 4][0], transformed_corners[(i + 1) % 4][1])
+            for i in range(4)
+        ]
+        _,flag=gpu_batch_intersections_with_flag(walls,carlines)
+
+        return flag
         
+
     def wallinter(self, lines):
         """Check if any line of the car intersects with given lines."""
         cos_ori = math.cos(self.ori)
@@ -473,3 +505,62 @@ def one_ray_intersection(max1, max2, x, y, ori, walls, screen=None):
 
                 
                 
+import cupy as cp
+
+def gpu_batch_intersections_with_flag(list_a, list_b):
+    """
+    list_a: list of Line objects
+    list_b: list of Line objects
+
+    Returns:
+        intersections: cp.ndarray of shape (len(list_a), len(list_b)) -> True where lines intersect
+        any_intersection: bool, True if any intersection occurs
+    """
+    N = len(list_a)
+    M = len(list_b)
+
+    if N == 0 or M == 0:
+        return cp.zeros((N, M), dtype=cp.bool_), False
+
+    # Prepare CuPy arrays for coordinates
+    A_start = cp.zeros((N, 2), dtype=cp.float32)
+    A_end   = cp.zeros((N, 2), dtype=cp.float32)
+    B_start = cp.zeros((M, 2), dtype=cp.float32)
+    B_end   = cp.zeros((M, 2), dtype=cp.float32)
+
+    for i, line in enumerate(list_a):
+        A_start[i, 0] = line.x1
+        A_start[i, 1] = line.y1
+        A_end[i, 0] = line.x2
+        A_end[i, 1] = line.y2
+
+    for j, line in enumerate(list_b):
+        B_start[j, 0] = line.x1
+        B_start[j, 1] = line.y1
+        B_end[j, 0] = line.x2
+        B_end[j, 1] = line.y2
+
+    # Expand dimensions for broadcasting
+    A_start = A_start[:, cp.newaxis, :]  # (N, 1, 2)
+    A_end = A_end[:, cp.newaxis, :]      # (N, 1, 2)
+    B_start = B_start[cp.newaxis, :, :]  # (1, M, 2)
+    B_end = B_end[cp.newaxis, :, :]      # (1, M, 2)
+
+    # CCW function using broadcasting
+    def ccw(P, Q, R):
+        return (R[..., 1] - P[..., 1]) * (Q[..., 0] - P[..., 0]) > (Q[..., 1] - P[..., 1]) * (R[..., 0] - P[..., 0])
+
+    ccw1 = ccw(A_start, B_start, B_end)
+    ccw2 = ccw(A_end, B_start, B_end)
+    ccw3 = ccw(A_start, A_end, B_start)
+    ccw4 = ccw(A_start, A_end, B_end)
+
+    intersections = (ccw1 != ccw2) & (ccw3 != ccw4)  # Shape: (N, M)
+
+    any_intersection = cp.any(intersections).item()  # Convert single bool from GPU to Python bool
+
+    return intersections, any_intersection
+
+
+
+    
