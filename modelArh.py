@@ -109,7 +109,7 @@ class Population:
         self.models = [CarGameAgent(input_size) for _ in range(pop_size)]
         self.fitnesses = [0 for _ in range(pop_size)]
 
-    def evaluate(self, env_fn,visualize,threshold,maxsteps,device):
+    def evaluate(self, env_fn,visualize,threshold, maxsteps: int, device: str):
         """Evaluate all models using provided environment generator."""
         for i, model in enumerate(self.models):
             env = env_fn()

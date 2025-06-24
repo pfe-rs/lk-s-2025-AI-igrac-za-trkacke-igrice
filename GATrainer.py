@@ -1,6 +1,7 @@
 import sys
 import random
 import torch
+from agent.device import get_device
 from modelArh import CarGameAgent, Population
 from gym_env_custom import CustomEnvGAWithQuads
 import os
@@ -41,14 +42,12 @@ if __name__ == "__main__":
                 model.load_state_dict(torch.load(full_path))
                 population.models.append(model)
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
     # === GA Loop ===
     for generation in range(num_generations):
         print(f"\n=== Generation {generation} ===")
         
         # Evaluate all models
-        population.evaluate(env_fn,False,0.5,900,device)
+        population.evaluate(env_fn,False,0.5,900, get_device())
         
         # Print best result
         best_model, best_fitness = population.best_model()
