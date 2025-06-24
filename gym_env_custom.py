@@ -372,7 +372,7 @@ class CustomEnvGAWithQuads(gym.Env):
         #     done = True
         #     self.run = False
         if self.car.wallinter(self.chosen_walls):
-            reward = -10
+            # reward = -10
             done = True
             self.run = False
 
