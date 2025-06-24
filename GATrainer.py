@@ -5,6 +5,8 @@ from modelArh import CarGameAgent, Population
 from gym_env_custom import CustomEnvGAWithQuads
 import os
 
+
+
 # === Environment Parameters ===
 ray_number = 7
 parametri = 6

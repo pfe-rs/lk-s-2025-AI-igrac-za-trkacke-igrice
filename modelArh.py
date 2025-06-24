@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from ClassesML2 import *
 from gym_env_custom import CustomEnvGAWithQuads
+from custom_arch import batched_forward
 
 class CarGameAgent(nn.Module):
     def __init__(self, input_size):
@@ -115,6 +116,59 @@ class Population:
             self.fitnesses[i] = model.run_in_environment(env,visualize,threshold,maxsteps,device)
             # (self, env, visualize=True, threshold=0.5,maxsteps=500)
     
+    def evaluate_gpu(self, env_fn, threshold=0.5, maxsteps=500, device="cpu"):
+        """
+        Evaluate all models on GPU using true batching logic.
+
+        Args:
+            env_fn: function to create environments
+            threshold: action activation threshold (float)
+            maxsteps: max steps per episode
+            device: "cuda" or "cpu"
+        """
+        all_envs = [env_fn() for _ in range(self.pop_size)]
+        batch_size = self.pop_size
+
+        # Move models to device once
+        for model in self.models:
+            model.to(device)
+
+        self.fitnesses = [0.0 for _ in range(batch_size)]
+        dones = [False for _ in range(batch_size)]
+
+        # Reset all environments
+        for env in all_envs:
+            env.state = env.reset()
+
+        for step in range(maxsteps):
+            if all(dones):
+                break  # All agents are done
+
+            states = []
+            for env in all_envs:
+                states.append(torch.tensor(env.state, dtype=torch.float32))
+
+            states_tensor = torch.stack(states).to(device)
+
+            actions = batched_forward(states_tensor, self.models, device=device)
+
+            for i, (env, action_probs) in enumerate(zip(all_envs, actions)):
+                if not dones[i]:
+                    chosen_actions = (action_probs > threshold).int().cpu().tolist()
+                    state, reward, done, steps, score = env.step(chosen_actions)
+                    env.state = state
+                    self.fitnesses[i] += reward
+                    dones[i] = done
+
+        # Move models back to CPU
+        for model in self.models:
+            model.to("cpu")
+
+
+
+
+
+
 
     
 
