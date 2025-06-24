@@ -17,8 +17,8 @@ def env_fn():
     return CustomEnvGAWithQuads(n_inputs, level_file, car_params)
 
 # === GA Hyperparameters ===
-population_size = 10
-num_generations = 3
+population_size = 100
+num_generations = 100
 mutation_rate = 0.1
 mutation_strength = 0.2
 elite_fraction = 0.2
