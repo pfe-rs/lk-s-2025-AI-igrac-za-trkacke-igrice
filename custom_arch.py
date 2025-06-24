@@ -16,7 +16,7 @@ def batched_linear(inputs, weights, biases):
     return torch.bmm(weights, inputs.unsqueeze(2)).squeeze(2) + biases
 
 
-def batched_forward(states, models, device="cuda"):
+def batched_forward(states, models, device):
     """
     Runs a true batched forward pass with different models, same architecture.
 

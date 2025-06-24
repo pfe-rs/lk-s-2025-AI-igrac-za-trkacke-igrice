@@ -6,8 +6,6 @@ from modelArh import CarGameAgent, Population
 from gym_env_custom import CustomEnvGAWithQuads
 import os
 
-
-
 # === Environment Parameters ===
 ray_number = 7
 parametri = 6
@@ -47,14 +45,15 @@ if __name__ == "__main__":
         print(f"\n=== Generation {generation} ===")
         
         # Evaluate all models
-        population.evaluate(env_fn,False,0.5,900, get_device())
+        population.evaluate_gpu(env_fn, 0.5, 900, get_device())
         
         # Print best result
         best_model, best_fitness = population.best_model()
         print(f"Best Fitness: {best_fitness:.2f}")
 
         # Optionally run the best model visually
-        population.save_best_models("models/"+str(generation+100),int(population_size*elite_fraction))
+        # TODO: Change this hardcoded shit
+        population.save_best_models("models/"+str(generation+173),int(population_size*elite_fraction))
         # if generation % 10 == 0:
             
         #     print("Visualizing best agent...")

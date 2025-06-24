@@ -1,7 +1,9 @@
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from ClassesML2 import *
+from agent.device import get_device
 from gym_env_custom import CustomEnvGAWithQuads
 from custom_arch import batched_forward
 
@@ -94,10 +96,6 @@ class CarGameAgent(nn.Module):
 
 
 
-
-
-
-
 class Population:
     def __init__(self, pop_size, input_size, mutation_rate=0.05, mutation_strength=0.1, elite_fraction=0.2):
         self.pop_size = pop_size
@@ -116,7 +114,7 @@ class Population:
             self.fitnesses[i] = model.run_in_environment(env,visualize,threshold,maxsteps,device)
             # (self, env, visualize=True, threshold=0.5,maxsteps=500)
     
-    def evaluate_gpu(self, env_fn, threshold=0.5, maxsteps=500, device="cpu"):
+    def evaluate_gpu(self, env_fn, threshold: float = 0.5, maxsteps: int = 500, device: str = get_device()):
         """
         Evaluate all models on GPU using true batching logic.
 
@@ -161,21 +159,9 @@ class Population:
                     dones[i] = done
 
         # Move models back to CPU
+        # TODO: Review if actually need to send to cpu
         for model in self.models:
             model.to("cpu")
-
-
-
-
-
-
-
-    
-
-
-
-
-
 
     # def next_generation(self):
     #     """Create next generation: elitism + mutation + crossover."""
@@ -229,7 +215,7 @@ class Population:
         clone.load_state_dict(model.state_dict())
         return clone
     
-    def save_best_models(self, save_path, top_n=5):
+    def save_best_models(self, save_path: str, top_n: int = 5):
         """
         Saves the top N models based on fitness.
 
@@ -237,7 +223,6 @@ class Population:
             save_path (str): Folder path where models will be saved
             top_n (int): Number of best models to save
         """
-        import os
         os.makedirs(save_path, exist_ok=True)
 
         sorted_indices = sorted(range(self.pop_size), key=lambda i: self.fitnesses[i], reverse=True)
