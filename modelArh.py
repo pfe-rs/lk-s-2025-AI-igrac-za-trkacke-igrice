@@ -115,29 +115,47 @@ class Population:
             self.fitnesses[i] = model.run_in_environment(env,visualize,threshold,maxsteps,device)
             # (self, env, visualize=True, threshold=0.5,maxsteps=500)
 
+    # def next_generation(self):
+    #     """Create next generation: elitism + mutation + crossover."""
+    #     num_elite = max(1, int(self.pop_size * self.elite_fraction))
+    #     sorted_indices = sorted(range(self.pop_size), key=lambda i: self.fitnesses[i], reverse=True)
+    #     elite = [self.models[i] for i in sorted_indices[:num_elite]]
+
+    #     next_gen = [self.clone_model(m) for m in elite]
+
+    #     while len(next_gen) < self.pop_size:
+    #         if random.random() < 0.5:
+    #             # Crossover
+    #             parent1 = random.choice(elite)
+    #             child = 
+    #         else:
+    #             # Mutated clone
+    #             parent = random.choice(elite)
+    #             child = self.clone_model(parent)
+
+    #         child.mutate(self.mutation_rate, self.mutation_strength)
+    #         next_gen.append(child)
+
+    #     self.models = next_gen
+    #     self.fitnesses = [0 for _ in range(self.pop_size)]
+
     def next_generation(self):
-        """Create next generation: elitism + mutation + crossover."""
+        """Create next generation: elitism + cloning + mutation only (no crossover)."""
         num_elite = max(1, int(self.pop_size * self.elite_fraction))
         sorted_indices = sorted(range(self.pop_size), key=lambda i: self.fitnesses[i], reverse=True)
         elite = [self.models[i] for i in sorted_indices[:num_elite]]
 
-        next_gen = [self.clone_model(m) for m in elite]
+        next_gen = [self.clone_model(m) for m in elite]  # Copy elite directly
 
         while len(next_gen) < self.pop_size:
-            if random.random() < 0.5:
-                # Crossover
-                parent1, parent2 = random.sample(elite, 2)
-                child = self.crossover(parent1, parent2)
-            else:
-                # Mutated clone
-                parent = random.choice(elite)
-                child = self.clone_model(parent)
-
+            parent = random.choice(elite)
+            child = self.clone_model(parent)
             child.mutate(self.mutation_rate, self.mutation_strength)
             next_gen.append(child)
 
         self.models = next_gen
         self.fitnesses = [0 for _ in range(self.pop_size)]
+
 
     def best_model(self):
         """Return best model and its fitness."""
@@ -148,14 +166,6 @@ class Population:
         clone = CarGameAgent(self.input_size)
         clone.load_state_dict(model.state_dict())
         return clone
-
-    def crossover(self, parent1, parent2):
-        """Simple crossover: 50% weights from each parent."""
-        child = CarGameAgent(self.input_size)
-        for c_param, p1_param, p2_param in zip(child.parameters(), parent1.parameters(), parent2.parameters()):
-            mask = torch.rand_like(c_param) < 0.5
-            c_param.data.copy_(torch.where(mask, p1_param.data, p2_param.data))
-        return child
     
     def save_best_models(self, save_path, top_n=5):
         """
