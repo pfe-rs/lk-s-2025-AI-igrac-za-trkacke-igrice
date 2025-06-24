@@ -28,7 +28,7 @@ if __name__ == "__main__":
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    reward=model.run_in_environment(env_fn(), visualize=True, threshold=0.5,maxsteps=200,device=device)
+    reward=model.run_in_environment(env_fn(), visualize=True, threshold=0.5,maxsteps=10000,device=device)
     # best_model.run_in_environment(env_fn(), visualize=True, threshold=0.5,maxsteps=200)
 
 

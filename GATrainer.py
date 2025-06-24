@@ -1,7 +1,9 @@
+import sys
 import random
 import torch
-from modelArh import Population
+from modelArh import CarGameAgent, Population
 from gym_env_custom import CustomEnvGAWithQuads
+import os
 
 # === Environment Parameters ===
 ray_number = 7
@@ -23,29 +25,40 @@ mutation_rate = 0.1
 mutation_strength = 0.2
 elite_fraction = 0.2
 
-# === Initialize Population ===
-population = Population(population_size, n_inputs, mutation_rate, mutation_strength, elite_fraction)
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
+if __name__ == "__main__":
+    population = Population(population_size, n_inputs, mutation_rate, mutation_strength, elite_fraction)
 
-# === GA Loop ===
-for generation in range(num_generations):
-    print(f"\n=== Generation {generation} ===")
-    
-    # Evaluate all models
-    population.evaluate(env_fn,False,0.5,900,device)
-    
-    # Print best result
-    best_model, best_fitness = population.best_model()
-    print(f"Best Fitness: {best_fitness:.2f}")
+    init_population_path = sys.argv[1]
+    if init_population_path:
+        population.models=[]
+        for filename in os.listdir(init_population_path):
+            if filename.endswith(".pth"):
+                full_path = os.path.join(init_population_path, filename)
+                model=CarGameAgent(n_inputs)
+                model.load_state_dict(torch.load(full_path))
+                population.models.append(model)
 
-    # Optionally run the best model visually
-    population.save_best_models("models/"+str(generation),int(population_size*elite_fraction))
-    # if generation % 10 == 0:
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # === GA Loop ===
+    for generation in range(num_generations):
+        print(f"\n=== Generation {generation} ===")
         
-    #     print("Visualizing best agent...")
-    #     # (self, env, visualize=True, threshold=0.5,maxsteps=500):
-    #     best_model.run_in_environment(env_fn(), visualize=True, threshold=0.5,maxsteps=200)
+        # Evaluate all models
+        population.evaluate(env_fn,False,0.5,900,device)
+        
+        # Print best result
+        best_model, best_fitness = population.best_model()
+        print(f"Best Fitness: {best_fitness:.2f}")
 
-    # Create next generation
-    population.next_generation()
+        # Optionally run the best model visually
+        population.save_best_models("models/"+str(generation+100),int(population_size*elite_fraction))
+        # if generation % 10 == 0:
+            
+        #     print("Visualizing best agent...")
+        #     # (self, env, visualize=True, threshold=0.5,maxsteps=500):
+        #     best_model.run_in_environment(env_fn(), visualize=True, threshold=0.5,maxsteps=200)
+
+        # Create next generation
+        population.next_generation()
