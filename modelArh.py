@@ -85,7 +85,7 @@ class CarGameAgent(nn.Module):
 
             if done or steps >= maxsteps:
                 running = False
-
+        self.to("cpu")
         env.close()
         return total_reward
 
