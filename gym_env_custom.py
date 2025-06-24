@@ -265,47 +265,10 @@ class CustomEnvGAWithQuads(gym.Env):
         self.car.tostart(self.level.location)
 
         # Calculate initial state (e.g., from rays)
-        self.state = np.array(
-            new_ray_intersection(self.car.length, self.car.width, self.car.x, self.car.y, self.car.ori,
-                                 self.car.ni, self.level.walls),
-            dtype=np.float32
-        )
+        self.get_state()
 
         return self.state
-
-    def step(self, action):
-        self.car.rfx = 0
-        self.car.rfy = 0
-        self.car.ni = self.car.bni
-
-        
-
-        # Process binary actions
-        if action[0]: self.car.gas()
-        if action[1]: self.car.brake()
-        if action[2]: self.car.steerleft()
-        if action[3]: self.car.steerright()
-
-        # Physics and state update
-        self.car.Ori()
-        self.car.friction(self.level.g)
-        self.car.ac(self.FPS)
-        self.car.step(self.FPS)
-
-        # os.system('clear')
-
-
-
-
-        decided_quad=self.car.decide_quad(self.level)
-       
-        self.chosen_walls= get_chosen_ones(self.level.walls,self.level.boolean_walls,decided_quad)
-
-        # print(len(self.chosen_walls))
-
-
-
-
+    def get_state(self):
         self.state=[]
 
         # Parametri
@@ -341,27 +304,67 @@ class CustomEnvGAWithQuads(gym.Env):
                                         self.car.x, 
                                         self.car.y,
                                         self.car.ori,
-                                        self.car.ni,
+                                        self.ray_number,
                                         self.level.walls))
+        
+        # ntersection(max1, max2, x, y, ori, ray_number, walls, screen=None):
         
         self.intersections.extend(new_ray_intersection(self.level.proportions[0],
                                         self.level.proportions[1], 
                                         self.car.x, 
                                         self.car.y,
                                         math.atan2(self.car.vy, self.car.vx),
-                                        self.car.ni,
+                                        self.ray_number,
                                         self.level.walls))
+        
+        for i in range(len(self.intersections)):
+            self.intersections[i]=max(0, min(1, (self.intersections[i] / 2000 + 1) / 2))
+
+
+        self.state.extend(self.intersections)
+    def step(self, action):
+        self.car.rfx = 0
+        self.car.rfy = 0
+        self.car.ni = self.car.bni
+
+        
+
+        # Process binary actions
+        if action[0]: self.car.gas()
+        if action[1]: self.car.brake()
+        if action[2]: self.car.steerleft()
+        if action[3]: self.car.steerright()
+
+        # Physics and state update
+        self.car.Ori()
+        self.car.friction(self.level.g)
+        self.car.ac(self.FPS)
+        self.car.step(self.FPS)
+
+        # os.system('clear')
+
+
+
+
+        decided_quad=self.car.decide_quad(self.level)
+       
+        self.chosen_walls= get_chosen_ones(self.level.walls,self.level.boolean_walls,decided_quad)
+
+        # print(len(self.chosen_walls))
+
+
+
+
+        self.get_state()
         # self.state = np.array(
         #     new_ray_intersection(self.car.length, self.car.width, self.car.x, self.car.y, self.car.ori,
         #                          self.car.ni, self.level.walls),
         #     dtype=np.float32
         # )
 
-        for i in range(len(self.intersections)):
-            self.intersections[i]=max(0, min(1, (self.intersections[i] / 2000 + 1) / 2))
+        
 
 
-        self.state.extend(self.intersections)
         reward = 1  # You can design this better
         done = False
         # if self.car.wallinter(self.level.walls):
