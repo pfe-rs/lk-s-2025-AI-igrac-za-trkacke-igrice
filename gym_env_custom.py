@@ -154,7 +154,7 @@ class CustomEnvGA(gym.Env):
 
 
         self.state.extend(self.intersections)
-        reward = 1  # You can design this better
+        reward = 0  # You can design this better
         done = False
         if self.car.wallinter(self.level.walls):
             reward = -10

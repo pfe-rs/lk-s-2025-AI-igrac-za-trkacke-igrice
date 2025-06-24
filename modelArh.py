@@ -114,6 +114,14 @@ class Population:
             env = env_fn()
             self.fitnesses[i] = model.run_in_environment(env,visualize,threshold,maxsteps,device)
             # (self, env, visualize=True, threshold=0.5,maxsteps=500)
+    
+
+    
+
+
+
+
+
 
     # def next_generation(self):
     #     """Create next generation: elitism + mutation + crossover."""
