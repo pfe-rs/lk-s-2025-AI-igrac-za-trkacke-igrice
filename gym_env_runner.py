@@ -38,7 +38,7 @@ while running:
         action[3]=True
 
     # === Step ===
-    state, reward, done, _ = env.step(action)
+    state, reward, done, _, _ = env.step(action)
     env.render()
 
     if done:
