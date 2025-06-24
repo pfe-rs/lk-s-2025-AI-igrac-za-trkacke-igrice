@@ -414,10 +414,21 @@ class CustomEnvGAWithQuads(gym.Env):
         #     reward = -10
         #     done = True
         #     self.run = False
-        if self.car.wallinter(self.chosen_walls):
+        # if self.car.wallinter(self.chosen_walls):
+        #     reward = -10
+        #     done = True
+        #     self.run = False
+
+
+        if self.car.wallinter_gpu(self.chosen_walls):
             reward = -10
             done = True
             self.run = False
+
+
+
+
+        
 
         if self.car.checkinter([self.level.checkpoints[self.check_number]]):
             self.check_number+=1
@@ -474,9 +485,77 @@ class CustomEnvGAWithQuads(gym.Env):
 
 
 
-class CustomEnvGAWithQuadsWithGpu(gym.Env):
+
+
+class CustomEnvGAWithQuadsAndGpu(gym.Env):
     def __init__(self, n_i, level_loc, paramethers,ray_number=7):
-        super(CustomEnvGAWithQuadsWithGpu, self).__init__()
+        super(CustomEnvGAWithQuads, self).__init__()
+
+        # Action space: 4 discrete actions (gas, brake, left, right)
+        self.action_space = spaces.MultiBinary(4)
+
+        # Observation space: vector of length n_i (e.g., distances or sensors)
+        self.observation_space = spaces.Box(low=0, high=1, shape=(n_i,), dtype=np.float32)
+
+        self.level = level_loader(level_loc)
+        self.level_copy = copy.deepcopy(self.level)
+        self.FPS = self.level.FPS
+        self.car = car_from_parameters(paramethers)
+        self.car.x=self.level.location[0]
+        self.car.y=self.level.location[1]
+
+        self.ray_number=ray_number
+
+        self.state = None
+        self.score = 0
+        self.steps = 0
+        self.run = True
+
+        self.check_number=0
+
+        
+
+    def start_pygame(self):
+        pygame.init()
+        pygame.display.set_caption("Zapis")
+        self.screen = pygame.display.set_mode((self.level.proportions[0], self.level.proportions[1]))
+        self.clock = pygame.time.Clock()
+        self.font = pygame.font.Font(None, 36)
+
+    def reset(self):
+        self.score = 0
+        # self.steps = 0
+class CustomEnvGAWithQuads(gym.Env):
+    def __init__(self, n_i, level_loc, paramethers,ray_number=7):
+        super(CustomEnvGAWithQuads, self).__init__()
+
+        # Action space: 4 discrete actions (gas, brake, left, right)
+        self.action_space = spaces.MultiBinary(4)
+
+        # Observation space: vector of length n_i (e.g., distances or sensors)
+        self.observation_space = spaces.Box(low=0, high=1, shape=(n_i,), dtype=np.float32)
+
+        self.level = level_loader(level_loc)
+        self.level_copy = copy.deepcopy(self.level)
+        self.FPS = self.level.FPS
+        self.car = car_from_parameters(paramethers)
+        self.car.x=self.level.location[0]
+        self.car.y=self.level.location[1]
+
+        self.ray_number=ray_number
+
+        self.state = None
+        self.score = 0
+        self.steps = 0
+        self.run = True
+        self.check_number=0
+        self.run = True
+        self.level = copy.deepcopy(self.level_copy)
+        self.car.tostart(self.level.location)
+
+class CustomEnvGAWithQuads(gym.Env):
+    def __init__(self, n_i, level_loc, paramethers,ray_number=7):
+        super(CustomEnvGAWithQuads, self).__init__()
 
         # Action space: 4 discrete actions (gas, brake, left, right)
         self.action_space = spaces.MultiBinary(4)
@@ -601,7 +680,7 @@ class CustomEnvGAWithQuadsWithGpu(gym.Env):
         #     reward = -10
         #     done = True
         #     self.run = False
-        if self.car.wallinter_gpu(self.chosen_walls):
+        if self.car.wallinter(self.chosen_walls):
             reward = -10
             done = True
             self.run = False
