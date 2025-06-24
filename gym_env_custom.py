@@ -259,6 +259,7 @@ class CustomEnvGAWithQuads(gym.Env):
     def reset(self):
         self.score = 0
         # self.steps = 0
+        self.check_number=0
         self.run = True
         self.level = copy.deepcopy(self.level_copy)
         self.car.tostart(self.level.location)
