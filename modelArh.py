@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from ClassesML2 import *
+from gym_env_custom import CustomEnvGAWithQuads
 
 class CarGameAgent(nn.Module):
     def __init__(self, input_size):
@@ -22,3 +24,148 @@ class CarGameAgent(nn.Module):
         actions = torch.sigmoid(self.fc4(x))
         
         return actions
+
+    def mutate(self, mutation_rate=0.05, mutation_strength=0.1):
+        """
+        Randomly mutates weights and biases of the model.
+
+        Args:
+            mutation_rate (float): Probability each weight/bias mutates
+            mutation_strength (float): Standard deviation of noise added
+        """
+        for param in self.parameters():
+            if len(param.shape) > 1:  # Weights
+                mask = (torch.rand_like(param) < mutation_rate).float()
+                noise = torch.randn_like(param) * mutation_strength
+                param.data += mask * noise
+            else:  # Biases
+                mask = (torch.rand_like(param) < mutation_rate).float()
+                noise = torch.randn_like(param) * mutation_strength
+                param.data += mask * noise
+    def run_in_environment(self, env, visualize=True, threshold=0.5,maxsteps=500):
+        """
+        Runs the model in the environment once until done.
+
+        Args:
+            n_inputs (int): Total input size for the environment
+            level_file (str): Path to the level file
+            car_params (tuple): Car parameters for initialization
+            visualize (bool): If True, shows pygame window
+            threshold (float): Action activation threshold
+        """
+        if visualize:
+            env.start_pygame()
+
+        state = env.reset()
+        total_reward = 0
+        running = True
+
+        while running:
+            if visualize:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        running = False
+
+            state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+            action_probs = self(state_tensor)
+            chosen_actions = (action_probs > threshold).int().squeeze(0).tolist()
+
+            state, reward, done, steps, score = env.step(chosen_actions)
+            total_reward += reward
+
+            if visualize:
+                env.render()
+
+            if done or steps>=maxsteps:
+                # print(f"Episode finished after {steps} steps. Total Reward: {total_reward}")
+                running = False
+
+        env.close()
+
+        return total_reward
+
+
+
+
+
+
+class Population:
+    def __init__(self, pop_size, input_size, mutation_rate=0.05, mutation_strength=0.1, elite_fraction=0.2):
+        self.pop_size = pop_size
+        self.input_size = input_size
+        self.mutation_rate = mutation_rate
+        self.mutation_strength = mutation_strength
+        self.elite_fraction = elite_fraction
+
+        self.models = [CarGameAgent(input_size) for _ in range(pop_size)]
+        self.fitnesses = [0 for _ in range(pop_size)]
+
+    def evaluate(self, env_fn,visualize,threshold,maxsteps):
+        """Evaluate all models using provided environment generator."""
+        for i, model in enumerate(self.models):
+            env = env_fn()
+            self.fitnesses[i] = model.run_in_environment(env,visualize,threshold,maxsteps)
+            # (self, env, visualize=True, threshold=0.5,maxsteps=500)
+
+    def next_generation(self):
+        """Create next generation: elitism + mutation + crossover."""
+        num_elite = max(1, int(self.pop_size * self.elite_fraction))
+        sorted_indices = sorted(range(self.pop_size), key=lambda i: self.fitnesses[i], reverse=True)
+        elite = [self.models[i] for i in sorted_indices[:num_elite]]
+
+        next_gen = [self.clone_model(m) for m in elite]
+
+        while len(next_gen) < self.pop_size:
+            if random.random() < 0.5:
+                # Crossover
+                parent1, parent2 = random.sample(elite, 2)
+                child = self.crossover(parent1, parent2)
+            else:
+                # Mutated clone
+                parent = random.choice(elite)
+                child = self.clone_model(parent)
+
+            child.mutate(self.mutation_rate, self.mutation_strength)
+            next_gen.append(child)
+
+        self.models = next_gen
+        self.fitnesses = [0 for _ in range(self.pop_size)]
+
+    def best_model(self):
+        """Return best model and its fitness."""
+        best_idx = max(range(self.pop_size), key=lambda i: self.fitnesses[i])
+        return self.models[best_idx], self.fitnesses[best_idx]
+
+    def clone_model(self, model):
+        clone = CarGameAgent(self.input_size)
+        clone.load_state_dict(model.state_dict())
+        return clone
+
+    def crossover(self, parent1, parent2):
+        """Simple crossover: 50% weights from each parent."""
+        child = CarGameAgent(self.input_size)
+        for c_param, p1_param, p2_param in zip(child.parameters(), parent1.parameters(), parent2.parameters()):
+            mask = torch.rand_like(c_param) < 0.5
+            c_param.data.copy_(torch.where(mask, p1_param.data, p2_param.data))
+        return child
+    
+    def save_best_models(self, save_path, top_n=5):
+        """
+        Saves the top N models based on fitness.
+
+        Args:
+            save_path (str): Folder path where models will be saved
+            top_n (int): Number of best models to save
+        """
+        import os
+        os.makedirs(save_path, exist_ok=True)
+
+        sorted_indices = sorted(range(self.pop_size), key=lambda i: self.fitnesses[i], reverse=True)
+
+        for rank, idx in enumerate(sorted_indices[:top_n]):
+            model = self.models[idx]
+            fitness = self.fitnesses[idx]
+            filename = os.path.join(save_path, f"model_rank{rank+1}_fitness{fitness:.2f}.pth")
+            torch.save(model.state_dict(), filename)
+
+        print(f"Saved top {top_n} models to {save_path}")

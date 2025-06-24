@@ -391,7 +391,7 @@ class CustomEnvGAWithQuads(gym.Env):
 
         # print(self.state)
 
-        return self.state, reward, done, self.steps
+        return self.state, reward, done, self.steps,self.score
 
     def render(self):
         pygame.display.flip()
