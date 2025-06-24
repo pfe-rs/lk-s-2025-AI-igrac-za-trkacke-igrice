@@ -42,17 +42,19 @@ class CarGameAgent(nn.Module):
                 mask = (torch.rand_like(param) < mutation_rate).float()
                 noise = torch.randn_like(param) * mutation_strength
                 param.data += mask * noise
-    def run_in_environment(self, env, visualize=True, threshold=0.5,maxsteps=500):
+    def run_in_environment(self, env, visualize=True, threshold=0.5, maxsteps=500, device="cpu"):
         """
         Runs the model in the environment once until done.
 
         Args:
-            n_inputs (int): Total input size for the environment
-            level_file (str): Path to the level file
-            car_params (tuple): Car parameters for initialization
+            env: Initialized environment
             visualize (bool): If True, shows pygame window
             threshold (float): Action activation threshold
+            maxsteps (int): Max steps before auto-termination
+            device (str): 'cpu' or 'cuda' for running the model
         """
+        self.to(device)  # Move model to desired device
+
         if visualize:
             env.start_pygame()
 
@@ -66,9 +68,14 @@ class CarGameAgent(nn.Module):
                     if event.type == pygame.QUIT:
                         running = False
 
-            state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
-            action_probs = self(state_tensor)
-            chosen_actions = (action_probs > threshold).int().squeeze(0).tolist()
+            # Move state to device
+            state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
+
+            with torch.no_grad():
+                action_probs = self(state_tensor)
+
+            # Move actions back to CPU for compatibility with environment
+            chosen_actions = (action_probs > threshold).int().squeeze(0).cpu().tolist()
 
             state, reward, done, steps, score = env.step(chosen_actions)
             total_reward += reward
@@ -76,13 +83,12 @@ class CarGameAgent(nn.Module):
             if visualize:
                 env.render()
 
-            if done or steps>=maxsteps:
-                # print(f"Episode finished after {steps} steps. Total Reward: {total_reward}")
+            if done or steps >= maxsteps:
                 running = False
 
         env.close()
-
         return total_reward
+
 
 
 
@@ -100,11 +106,11 @@ class Population:
         self.models = [CarGameAgent(input_size) for _ in range(pop_size)]
         self.fitnesses = [0 for _ in range(pop_size)]
 
-    def evaluate(self, env_fn,visualize,threshold,maxsteps):
+    def evaluate(self, env_fn,visualize,threshold,maxsteps,device):
         """Evaluate all models using provided environment generator."""
         for i, model in enumerate(self.models):
             env = env_fn()
-            self.fitnesses[i] = model.run_in_environment(env,visualize,threshold,maxsteps)
+            self.fitnesses[i] = model.run_in_environment(env,visualize,threshold,maxsteps,device)
             # (self, env, visualize=True, threshold=0.5,maxsteps=500)
 
     def next_generation(self):

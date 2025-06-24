@@ -26,12 +26,14 @@ elite_fraction = 0.2
 # === Initialize Population ===
 population = Population(population_size, n_inputs, mutation_rate, mutation_strength, elite_fraction)
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 # === GA Loop ===
 for generation in range(num_generations):
     print(f"\n=== Generation {generation} ===")
     
     # Evaluate all models
-    population.evaluate(env_fn,False,0.5,200)
+    population.evaluate(env_fn,False,0.5,200,device)
     
     # Print best result
     best_model, best_fitness = population.best_model()

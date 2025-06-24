@@ -21,7 +21,9 @@ model_path="models/2/model_rank2_fitness200.00.pth"
 model = CarGameAgent(n_inputs)
 model.load_state_dict(torch.load(model_path))
 
-reward=model.run_in_environment(env_fn(), visualize=True, threshold=0.5,maxsteps=200)
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+reward=model.run_in_environment(env_fn(), visualize=True, threshold=0.5,maxsteps=200,device=device)
 # best_model.run_in_environment(env_fn(), visualize=True, threshold=0.5,maxsteps=200)
 
 
