@@ -33,7 +33,7 @@ for generation in range(num_generations):
     print(f"\n=== Generation {generation} ===")
     
     # Evaluate all models
-    population.evaluate(env_fn,False,0.5,200,device)
+    population.evaluate(env_fn,False,0.5,900,device)
     
     # Print best result
     best_model, best_fitness = population.best_model()
