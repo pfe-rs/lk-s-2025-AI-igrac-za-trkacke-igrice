@@ -49,8 +49,7 @@ if __name__ == "__main__":
         print(f"\n=== Generation {generation} ===")
         
         # Evaluate all models
-        population.evaluate_gpu(env_fn, 0.5, 900, get_device())
-
+        population.evaluate_gpu(env_fn, 0.5, 1500, get_device())
         
         # Print best result
         best_model, best_fitness = population.best_model()
