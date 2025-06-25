@@ -29,8 +29,6 @@ def save_record(array, filename):
     print(f"Saved {len(to_save)} elements to {filename}")
 
 
-    
-
 def load_record(filename):
     """Load array from pickle file."""
     with open(filename, "rb") as f:

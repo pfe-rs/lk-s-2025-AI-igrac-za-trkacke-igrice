@@ -14,7 +14,7 @@ import pickle
 import pygame.surfarray as surfarray
 import copy
 import os
-from static_const import *
+from common.const import *
 
 class CustomEnvGA(gym.Env):
     def __init__(self, n_i, level_loc, paramethers,ray_number=7):
@@ -348,7 +348,6 @@ class CustomEnvGAWithQuads(gym.Env):
 
 
         decided_quad=self.car.decide_quad(self.level)
-       
         self.chosen_walls= get_chosen_ones(self.level.walls,self.level.boolean_walls,decided_quad)
 
         # print(len(self.chosen_walls))

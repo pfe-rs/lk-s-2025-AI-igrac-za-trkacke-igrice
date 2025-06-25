@@ -1,4 +1,3 @@
-
 max_car_mass=100
 
 max_car_length=200
