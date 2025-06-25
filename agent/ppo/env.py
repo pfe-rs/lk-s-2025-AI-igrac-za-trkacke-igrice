@@ -1,15 +1,22 @@
 from dataclasses import dataclass, field
+import statistics
 import math
+from pathlib import Path
 import numpy as np
 from typing import Any, SupportsFloat
 import gymnasium as gym
 from ClassesML2 import Car, Level, new_ray_intersection
-from agent.reward import CalcRewardFunc, CalcRewardOpts
+from Functions import car_from_parameters, level_loader
+from agent.reward import CalcRewardFunc, CalcRewardOpts, reward_strategies
 from common.const import *
 from quad_func import get_chosen_ones
+import logging
 
 ObservationT = np.ndarray
 ActionT = np.ndarray
+
+
+logging.basicConfig(level=logging.INFO)
 
 def clamp(val: float) -> float:
     return max(0.0, min(1.0, val))
@@ -54,9 +61,10 @@ class Env(gym.Env[ObservationT, ActionT]):
         self,
         level: Level,
         car: Car,
-        calc_reward: CalcRewardFunc,
-        inputs_count: int = 24,
-        rays_count: int = 7,
+        reward_strategies: list[CalcRewardFunc] = reward_strategies,
+        inputs_count: int = inputs_count,
+        rays_count: int = rays_count,
+        max_steps: int = 0,
     ) -> None:
         super(Env, self).__init__()
         self.action_space = gym.spaces.MultiBinary(4)
@@ -69,7 +77,6 @@ class Env(gym.Env[ObservationT, ActionT]):
 
         self.level = level
         self.car = car
-        self._calc_reward = calc_reward
         self.FPS = level.FPS
         self.ray_number=rays_count
 
@@ -79,11 +86,21 @@ class Env(gym.Env[ObservationT, ActionT]):
             car_width=clamp(self.car.width/max_car_width),
             car_brake_friction_multiplier=(self.car.k/max_car_k),
         )
-        self.score = 0
+        self.current_checkpoint_idx = 0
+
         self.steps = 0
+        self.max_steps: int = max_steps
+        self.score = 0
         self.run = True
 
-        self.current_checkpoint_idx = 0
+        # For choosing strategy
+        self.reward_strategies = reward_strategies
+        self.current_reward_strategy = 0
+        # When this number is too big -- we change strategy
+        self.min_runs_without_strategy_switch = 300
+        self.small_change_streak = 0
+        self.run_reward_history = [] # inside one run
+        self.avg_reward_history = [] # between runs
     
     def _upd_state(self) -> None:
         intersections: list[float] = [] # not-normalized distances to the walls
@@ -120,7 +137,6 @@ class Env(gym.Env[ObservationT, ActionT]):
         return self.state
 
     def step(self, action: ActionT) -> tuple[ObservationT, SupportsFloat, bool, bool, dict[str, Any]]:
-        super().step(action)
         self.car.rfx = 0
         self.car.rfy = 0
         self.car.ni = self.car.bni
@@ -160,16 +176,93 @@ class Env(gym.Env[ObservationT, ActionT]):
             checkpoint_activated = True
             self.score += 1
 
-        self.steps += 1
-        
-        reward = self._calc_reward(CalcRewardOpts(
+        reward: float = self.reward_strategies[self.current_reward_strategy](CalcRewardOpts(
             min_wall_distance,
             velocity_scalar,
             crashed,
             checkpoint_activated,
         ))
+        self.run_reward_history.append(reward)
 
-        raise Exception("Not implemented")
-    
-    def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[ObservationT, dict[str, Any]]:
-        return super().reset(seed=seed, options=options)
+        # logging.info(f"[Step {self.steps}] Reward Stage {self.current_reward_strategy} | "
+        #          f"Reward: {reward:.5f} | "
+        #          f"Velocity: {velocity_scalar:.2f} | "
+        #          f"MinWallDist: {min_wall_distance:.2f} | "
+        #          f"Crashed: {crashed} | "
+        #          f"Checkpoint: {checkpoint_activated}")
+
+        observation = np.array(state.flatten(), dtype=np.float32)
+        info = {
+            "score": self.score,
+            "steps": self.steps,
+            "checkpoint": self.check_number,
+            "reward_strategy": self.current_reward_strategy
+        }
+        if self.steps >= self.max_steps and self.max_steps > 0:
+            truncated = True
+            return observation, reward, False, truncated, info
+        
+        self.steps += 1
+        return observation, reward, crashed, False, info
+
+    def _should_switch_reward_strategy(self) -> bool:
+        if len(self.reward_strategies) <= 1:
+            return False
+
+        window = self.min_runs_without_strategy_switch
+        if len(self.avg_reward_history) < 3 * window:
+            return False
+
+        recent = self.avg_reward_history[-window:]
+        mid = self.avg_reward_history[-2 * window:-window]
+        old = self.avg_reward_history[-3 * window:-2 * window]
+
+        mean_recent = statistics.mean(recent)
+        mean_mid = statistics.mean(mid)
+        mean_old = statistics.mean(old)
+
+        delta_1 = mean_mid - mean_old
+        delta_2 = mean_recent - mean_mid
+
+        small_change = abs(delta_2) < 0.001 * abs(mean_mid)
+        negative_trend = delta_2 < -0.001 * abs(mean_mid)
+
+        try:
+            std_recent = statistics.stdev(recent)
+        except statistics.StatisticsError:
+            std_recent = 0.0
+        flat_curve = std_recent < 0.01 * abs(mean_recent)
+
+        return negative_trend or (small_change and flat_curve)
+
+    def reset(
+        self, *, seed: int | None = None, options: dict[str, Any] | None = None
+    ) -> tuple[ObservationT, dict[str, Any]]:
+        super().reset(seed=seed, options=options)
+
+        self.car.tostart(self.level.location)
+        self.steps = 0
+        self.score = 0
+        self.run = True
+        self.check_number = 0
+
+        self._upd_state()
+
+        if self.run_reward_history:
+            avg = sum(self.run_reward_history) / len(self.run_reward_history)
+            self.avg_reward_history.append(avg)
+        self.run_reward_history = []
+
+        if self._should_switch_reward_strategy():
+            self.current_reward_strategy = (self.current_reward_strategy + 1) % len(self.reward_strategies)
+
+        return np.array(self.state.flatten(), dtype=np.float32), {"strategy": self.current_reward_strategy}
+
+
+def env_factory(level_path: Path) -> Env:
+    level = level_loader(level_path)
+    car_params = (5, 40, 20, [100, 200, 255], 1500, 10, (0, 0, 0), 5)
+    car = car_from_parameters(car_params)
+    car.x = level.location[0]
+    car.y = level.location[1] 
+    return Env(level, car, reward_strategies=reward_strategies)

@@ -1,18 +1,28 @@
-import gymnasium as gym
 from stable_baselines3 import PPO
-from stable_baselines3.common.evaluation import evaluate_policy
+from pathlib import Path
+import sys
 
-from agent.env import Env
+from agent.ppo.env import env_factory
 
-default_model_path = "ppo_model"
-
-def env_factory() -> gym.Env:
-    raise Exception("Not implemented")
+default_model_path = Path("./models/ppo_model")
+default_level_path = Path("./levels/11.pkl")
 
 if __name__ == "__main__":
-    model_path = default_model_path
+    # Load paths from CLI args
+    model_path = Path(sys.argv[1]) if len(sys.argv) > 1 else default_model_path
+    level_path = Path(sys.argv[2]) if len(sys.argv) > 2 else default_level_path
 
-    model = PPO("MlpPolicy", env_factory(), verbose=1)
-    model.learn(total_timesteps=25000)
-    model.save(model_path)
+    env = env_factory(level_path)
 
+    if model_path.exists():
+        print(f"Loading model from {model_path}")
+        model = PPO.load(model_path, env=env, device="cpu")
+    else:
+        print(f"Training new model at {model_path}")
+        model = PPO("MlpPolicy", env, verbose=1, device="cpu")
+
+    try:
+        model.learn(total_timesteps=2500000000000)
+        model.save(model_path)
+    except KeyboardInterrupt:
+        model.save(model_path)

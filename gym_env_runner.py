@@ -16,8 +16,7 @@ car_params = (5,40,20,([100,200,255]),1500,10,(0,0,0),5)  # Example car: mass, l
 env = CustomEnvGAWithQuads(n_inputs, level_file, car_params)
 env.start_pygame()
 state = env.reset()
-states_to_save=[]
-actions_to_save=[]
+
 running = True
 while running:
     for event in pygame.event.get():
@@ -26,8 +25,9 @@ while running:
                 run=False  
                 env.close()             
     
-    action=[False,False,False,False]
+
     keys = pygame.key.get_pressed()
+    action=[False,False,False,False]
     if keys[pygame.K_w]:
         action[0]=True
     if keys[pygame.K_SPACE]:
@@ -36,23 +36,8 @@ while running:
         action[2]=True
     if keys[pygame.K_d]:
         action[3]=True
-    # keys = [random.choice([True, False]) for _ in range(4)]
-
-
-    # action=[False,False,False,False]
-    # if keys[0]:
-    #     action[0]=True
-    # if keys[1]:
-    #     action[1]=True
-    # if keys[2]:
-    #     action[2]=True
-    # if keys[3]:
-    #     action[3]=True
-    
 
     # === Step ===
-
-
     state, reward, done, _, _ = env.step(action)
     env.render()
 
