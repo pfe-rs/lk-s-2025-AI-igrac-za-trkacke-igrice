@@ -13,16 +13,17 @@ ray_number = 7
 parametri = 6
 stanja = 4
 n_inputs = parametri + stanja + 2 * ray_number
-maxsteps=500
-
+maxsteps=1500
 
 
 if __name__ == "__main__":
-    pass
-    level_file = "levels/10.pkl"
     car_params = (5, 40, 20, [100, 200, 255], 1500, 10, (0, 0, 0), 5)
+    if len(sys.argv) < 3:
+        print("should provide model and level paths")
 
-    model_path=sys.argv[1]
+    model_path = sys.argv[1]
+    level_file = sys.argv[2]
+
     model = CarGameAgent(n_inputs)
     model.load_state_dict(torch.load(model_path))
 

@@ -4,7 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from ClassesML2 import *
 from agent.device import get_device
-from gym_env_custom import CustomEnvGAWithQuads
 from custom_arch import batched_forward
 
 class CarGameAgent(nn.Module):
@@ -96,8 +95,9 @@ class CarGameAgent(nn.Module):
 
 
 
+
 class Population:
-    def __init__(self, pop_size, input_size, mutation_rate=0.05, mutation_strength=0.1, elite_fraction=0.2):
+    def __init__(self, pop_size: int, input_size: int, mutation_rate=0.05, mutation_strength=0.1, elite_fraction=0.2):
         self.pop_size = pop_size
         self.input_size = input_size
         self.mutation_rate = mutation_rate
