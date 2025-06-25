@@ -1,4 +1,5 @@
 import sys
+from agent.device import get_device
 from modelArh import CarGameAgent
 from gym_env_custom import CustomEnvGAWithQuads
 import time
@@ -27,7 +28,7 @@ if __name__ == "__main__":
     model = CarGameAgent(n_inputs)
     model.load_state_dict(torch.load(model_path))
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = get_device()
 
     reward=model.run_in_environment(env_fn(), visualize=True, threshold=0.5,maxsteps=10000,device=device)
     # best_model.run_in_environment(env_fn(), visualize=True, threshold=0.5,maxsteps=200)

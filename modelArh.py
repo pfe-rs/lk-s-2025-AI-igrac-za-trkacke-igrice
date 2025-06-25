@@ -1,4 +1,6 @@
 import os
+from typing import Callable
+import gym
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -45,8 +47,6 @@ class CarGameAgent(nn.Module):
                 noise = torch.randn_like(param) * mutation_strength
                 param.data += mask * noise
     def run_in_environment(self, env, visualize=True, threshold=0.5, maxsteps=500, device="cuda"):
-        # os.system('clear')
-        # print(device)
         """
         Runs the model in the environment once until done.
 
@@ -163,30 +163,6 @@ class Population:
         for model in self.models:
             model.to("cpu")
 
-    # def next_generation(self):
-    #     """Create next generation: elitism + mutation + crossover."""
-    #     num_elite = max(1, int(self.pop_size * self.elite_fraction))
-    #     sorted_indices = sorted(range(self.pop_size), key=lambda i: self.fitnesses[i], reverse=True)
-    #     elite = [self.models[i] for i in sorted_indices[:num_elite]]
-
-    #     next_gen = [self.clone_model(m) for m in elite]
-
-    #     while len(next_gen) < self.pop_size:
-    #         if random.random() < 0.5:
-    #             # Crossover
-    #             parent1 = random.choice(elite)
-    #             child = 
-    #         else:
-    #             # Mutated clone
-    #             parent = random.choice(elite)
-    #             child = self.clone_model(parent)
-
-    #         child.mutate(self.mutation_rate, self.mutation_strength)
-    #         next_gen.append(child)
-
-    #     self.models = next_gen
-    #     self.fitnesses = [0 for _ in range(self.pop_size)]
-
     def next_generation(self):
         """Create next generation: elitism + cloning + mutation only (no crossover)."""
         num_elite = max(1, int(self.pop_size * self.elite_fraction))
@@ -194,6 +170,20 @@ class Population:
         elite = [self.models[i] for i in sorted_indices[:num_elite]]
 
         next_gen = [self.clone_model(m) for m in elite]  # Copy elite directly
+
+        # NOTE: Cross parents code part   
+        # while len(next_gen) < self.pop_size:
+        #     if random.random() < 0.5:
+        #         # Crossover
+        #         parent1 = random.choice(elite)
+        #         child = 
+        #     else:
+        #         # Mutated clone
+        #         parent = random.choice(elite)
+        #         child = self.clone_model(parent)
+
+        #     child.mutate(self.mutation_rate, self.mutation_strength)
+        #     next_gen.append(child)
 
         while len(next_gen) < self.pop_size:
             parent = random.choice(elite)

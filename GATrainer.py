@@ -1,11 +1,9 @@
 import sys
-import random
 import torch
 from agent.device import get_device
 from modelArh import CarGameAgent, Population
 from gym_env_custom import CustomEnvGAWithQuads
 import os
-import copy
 
 # === Environment Parameters ===
 ray_number = 7
@@ -17,7 +15,7 @@ level_file = "levels/11.pkl"
 car_params = (5, 40, 20, [100, 200, 255], 1500, 10, (0, 0, 0), 5)
 
 # Function to create fresh environment per agent run
-def env_fn():
+def env_fn() -> CustomEnvGAWithQuads:
     return CustomEnvGAWithQuads(n_inputs, level_file, car_params)
 
 def get_last_gen(base_dir: str) -> int:

@@ -1,5 +1,7 @@
+from typing import Optional
 import gym
 from gym import spaces
+from gymnasium.core import ObsType
 import numpy as np
 from ClassesML2 import *
 from Functions import *
