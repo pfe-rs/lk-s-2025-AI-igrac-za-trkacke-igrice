@@ -16,4 +16,26 @@ def car_from_parameters(parameters):
 
 
 
+def save_record(array, filename):
+    """
+    Save all elements except the last 100 to a pickle file, if array has more than 100 elements.
+    If array has 100 or fewer elements, save the entire array.
+    """
+    if len(array) > 100:
+        to_save = array[:-100]
+    else:
+        to_save = array  # Save all if <= 100
+
+    with open(filename, "wb") as f:
+        pickle.dump(to_save, f)
+    
+    print(f"Saved {len(to_save)} elements to {filename}")
+
+
+    
+
+def load_record(filename):
+    """Load array from pickle file."""
+    with open(filename, "rb") as f:
+        return pickle.load(f)
 

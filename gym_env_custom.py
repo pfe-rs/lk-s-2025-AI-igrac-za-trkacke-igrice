@@ -14,6 +14,7 @@ import pickle
 import pygame.surfarray as surfarray
 import copy
 import os
+from static_const import *
 
 class CustomEnvGA(gym.Env):
     def __init__(self, n_i, level_loc, paramethers,ray_number=7):
@@ -274,15 +275,15 @@ class CustomEnvGAWithQuads(gym.Env):
         self.state=[]
 
         # Parametri
-        self.state.append(max(0, min(1,self.car.mass/100)))
+        self.state.append(max(0, min(1,self.car.mass/max_car_mass)))
 
-        self.state.append(max(0, min(1,self.car.length/200)))
-        self.state.append(max(0, min(1,self.car.width/100)))
+        self.state.append(max(0, min(1,self.car.length/max_car_length)))
+        self.state.append(max(0, min(1,self.car.width/max_car_width)))
 
-        self.state.append(max(0, min(1,self.car.ni/200)))
-        self.state.append(max(0, min(1,self.car.k/120)))
+        self.state.append(max(0, min(1,self.car.ni/max_car_ni)))
+        self.state.append(max(0, min(1,self.car.k/max_car_k)))
 
-        self.state.append(max(0, min(1,self.car.pull/10000)))
+        self.state.append(max(0, min(1,self.car.pull/max_car_pull)))
 
         
 
@@ -292,8 +293,8 @@ class CustomEnvGAWithQuads(gym.Env):
 
         # print(self.car.ni)
 
-        self.state.append(max(0, min(1, (self.car.vx / 1000 + 1) / 2)))
-        self.state.append(max(0, min(1, (self.car.vx / 1000 + 1) / 2)))
+        self.state.append(max(0, min(1, (self.car.vx / max_car_vx + 1) / 2)))
+        self.state.append(max(0, min(1, (self.car.vx / max_car_vy + 1) / 2)))
 
 
 
