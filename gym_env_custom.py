@@ -330,8 +330,6 @@ class CustomEnvGAWithQuads(gym.Env):
         self.car.rfy = 0
         self.car.ni = self.car.bni
 
-        
-
         # Process binary actions
         if action[0]: self.car.gas()
         if action[1]: self.car.brake()
@@ -365,9 +363,6 @@ class CustomEnvGAWithQuads(gym.Env):
         #     dtype=np.float32
         # )
 
-        
-
-
         reward = 0  # You can design this better
         done = False
         # if self.car.wallinter(self.level.walls):
@@ -386,13 +381,7 @@ class CustomEnvGAWithQuads(gym.Env):
             reward = 5
             self.score += 1
 
-        # if self.level.checkall():
-        #     self.level = copy.deepcopy(self.level_copy)
-
         self.steps += 1
-
-
-        # print(self.state)
 
         return self.state, reward, done, self.steps,self.score
 

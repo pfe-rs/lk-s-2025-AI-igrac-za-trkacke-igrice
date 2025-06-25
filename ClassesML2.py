@@ -20,7 +20,6 @@ class Line:
         self.y2 = y2
         self.turned = True
 
-        
 
     def draw(self, surface, color):
         # Draw the line on a given surface (e.g., using Pygame) if turned is True
@@ -255,39 +254,6 @@ class Car:
         self.ori-=0.05
     def steerright(self):
         self.ori+=0.05
-        
-        
-    def wallinter_gpu(self,walls):
-        """Check if any line of the car intersects with given lines."""
-        cos_ori = math.cos(self.ori)
-        sin_ori = math.sin(self.ori)
-        half_width = self.length / 2
-        half_length = self.width / 2
-
-        # Calculate the four corners of the car
-        corners = [
-            (-half_width, -half_length),  # Top-left
-            (half_width, -half_length),   # Top-right
-            (half_width, half_length),    # Bottom-right
-            (-half_width, half_length)    # Bottom-left
-        ]
-        transformed_corners = [
-            (
-                self.x + x * cos_ori - y * sin_ori,
-                self.y + x * sin_ori + y * cos_ori
-            )
-            for x, y in corners
-        ]
-
-        # Create car edges (lines connecting the corners)
-        carlines = [
-            Line(transformed_corners[i][0], transformed_corners[i][1],
-                transformed_corners[(i + 1) % 4][0], transformed_corners[(i + 1) % 4][1])
-            for i in range(4)
-        ]
-        _,flag=gpu_batch_intersections_with_flag(walls,carlines)
-
-        return flag
         
 
     def wallinter(self, lines):
