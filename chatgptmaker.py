@@ -6,7 +6,7 @@ import pickle
 import os
 
 # === Podešavanja ===
-file_root = "levels/"
+file_root = "clean-codes/levels/"
 file_ext = ".pkl"
 bias = 0
 
@@ -28,7 +28,7 @@ def snap_to_point(pos, points, threshold):
 os.makedirs(file_root, exist_ok=True)
 
 # === Glavni program ===
-for i in range(11, 12):
+for i in range(0, 10):
     
     pygame.init()
     screen = pygame.display.set_mode((width, height))
