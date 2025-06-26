@@ -6,7 +6,7 @@ import time
 import torch
 
 # Usage example:
-#   python clean-codes/double_maybe_runner.py models_supervised_maybe/gas_brake_model1350.pkl models_supervised_maybe/steer_model350.pkl levels/10.pkl
+#   python clean-codes/double_maybe_runner.py models_supervised_maybe/gas_brake_model350.pkl models_supervised_maybe/steer_model350.pkl levels/10.pkl
 
 start_time = time.time()
 
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     model.eval()
 
     reward = model.run_in_environment(
-        env_fn(), visualize=True, maxsteps=10000, device=device
+        env_fn(), visualize=True, maxsteps=10000, device=device, startvx=150,startstep=100
     )
 
     end_time = time.time()

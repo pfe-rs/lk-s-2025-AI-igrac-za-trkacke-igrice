@@ -250,6 +250,9 @@ class CustomEnvGAWithQuads(gym.Env):
 
         self.check_number=0
 
+
+
+
         
 
     def start_pygame(self):
@@ -259,16 +262,23 @@ class CustomEnvGAWithQuads(gym.Env):
         self.clock = pygame.time.Clock()
         self.font = pygame.font.Font(None, 36)
 
-    def reset(self):
+    def reset(self,startvx=0):
         self.score = 0
-        # self.steps = 0
+        self.steps = 0
         self.check_number=0
         self.run = True
         self.level = copy.deepcopy(self.level_copy)
         self.car.tostart(self.level.location)
+        
 
         # Calculate initial state (e.g., from rays)
         self.get_state()
+
+        
+        #BE CAREFUL
+
+        self.car.vx=startvx
+
 
         return self.state
     def get_state(self):

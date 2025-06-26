@@ -376,16 +376,20 @@ class CombinedCarGameAgentMaybe(nn.Module):
         self.model_gb = model_gas_brake  # Outputs logits for [gas, brake, neither]
         self.model_lr = model_left_right  # Outputs logits for [left, right, neither]
 
-    def forward(self, x):
+    def forward(self, x,force_it=False):
         logits_gb = self.model_gb(x)  # Shape: [batch_size, 3]
         logits_lr = self.model_lr(x)  # Shape: [batch_size, 3]
 
         probs_gb = F.softmax(logits_gb, dim=1)  # Convert to probabilities
         probs_lr = F.softmax(logits_lr, dim=1)
 
+        if force_it:
+            probs_gb = torch.tensor([[1, 0, 0]], dtype=torch.float32).to(x.device)
+
+
         return probs_gb, probs_lr  # Return both probability distributions
 
-    def run_in_environment(self, env, visualize=True, maxsteps=500, device="cuda"):
+    def run_in_environment(self, env, visualize=True, maxsteps=500, device="cuda",startvx=0,startstep=0):
         """
         Runs the model in the environment once until done.
 
@@ -404,6 +408,9 @@ class CombinedCarGameAgentMaybe(nn.Module):
         total_reward = 0
         running = True
 
+        
+
+
         while running:
             if visualize:
                 for event in pygame.event.get():
@@ -412,8 +419,15 @@ class CombinedCarGameAgentMaybe(nn.Module):
 
             state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
 
+
+            if env.car.vx<startvx and env.steps<startstep:
+                force_it=True
+            else:
+                force_it=False
+
+
             with torch.no_grad():
-                probs_gb, probs_lr = self(state_tensor)
+                probs_gb, probs_lr = self(state_tensor,force_it=force_it)
                 
 
             # Choose actions based on argmax
