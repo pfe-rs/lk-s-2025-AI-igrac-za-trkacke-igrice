@@ -1,12 +1,12 @@
 import sys
-from agent.device import get_device
+from agent.utils import get_device
 from modelArh import CarGameAgentDoubleMaybe, CombinedCarGameAgentMaybe
 from gym_env_custom import CustomEnvGAWithQuads
 import time
 import torch
 
 # Usage example:
-#   python clean-codes/double_maybe_runner.py models_supervised_maybe/gas_brake_model350.pkl models_supervised_maybe/steer_model350.pkl levels/10.pkl
+#   python clean-codes/double_maybe_runner.py models_supervised_maybe/gas_brake_model350.pkl models_supervised_maybe/steer_model350.pkl clean-codes/levels/1.pkl
 
 start_time = time.time()
 

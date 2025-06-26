@@ -1,15 +1,24 @@
 from gym_env_custom import CustomEnvGAWithQuads
 import pygame
 from Functions import save_record
+import random
 
 # === Parameters ===
 ray_number = 7
 parametri = 6
 stanja = 4
 
-n_inputs = parametri + stanja + 2 * ray_number  # Total input features for the car
+n_inputs = parametri + stanja + 2 * ray_number  # Total input features for the car 
+# level_num=random.randint(0,11)
 
-level_file = "levels/10.pkl"
+
+level_num=10
+
+#record number
+number=9
+
+
+level_file = "clean-codes/levels/"+str(level_num)+".pkl"
 
 # Car params: mass, length, width, color (RGB), pull, ni, location, k
 car_params = (5, 40, 20, [100, 200, 255], 1500, 10, (0, 0, 0), 5)
@@ -22,7 +31,7 @@ state = env.reset()
 # Recording storage
 record = []
 
-number=5
+
 
 # === Game Loop ===
 running = True
@@ -40,22 +49,27 @@ while running:
         action[0] = True
     if keys[pygame.K_SPACE]:
         action[1] = True
+        action[0]=False
     if keys[pygame.K_a]:
         action[2] = True
     if keys[pygame.K_d]:
         action[3] = True
 
-    # Save current state and action 
-    record.append([env.state, action])
+    if len(record) <= 20:
+        if action[0]:
+            record.append([env.state, action])
+    else:
+        record.append([env.state, action])
+    
 
     # Step environment
-    state, reward, done, _, _ = env.step(action)
+    state, reward, done, _, _ = env.step(action,from_state=True)
     env.render()
 
     # Check end conditions
     if done or not running:
         print("Episode finished! Saving recording...")
-        save_record(record, f"clean-codes/recordings/{number}.pkl")
+        save_record(record, f"clean-codes/recordings2/{number}.pkl")
         break
 
 # Cleanup

@@ -8,7 +8,9 @@ stanja=4
 
 # === Hyperparameters ===
 n_inputs = parametri+stanja+2*ray_number              # Number of rays/sensors
-level_file = "levels/10.pkl"
+level_file = "clean-codes/levels/8.pkl"
+
+
 car_params = (5,40,20,([100,200,255]),1500,10,(0,0,0),5)  # Example car: mass, length, width, color, pull, ni
 # (self, mass, length, width, color,pull,ni=5,location=(100,100,0.5*math.pi),k=5):
 # === Initialize Environment ===w
@@ -37,7 +39,7 @@ while running:
         action[3]=True
 
     # === Step ===
-    state, reward, done, _, _ = env.step(action)
+    state, reward, done, _, _ = env.step(action,from_state=True)
     env.render()
 
     if done:

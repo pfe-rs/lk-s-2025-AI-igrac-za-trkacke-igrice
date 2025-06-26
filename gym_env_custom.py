@@ -9,6 +9,7 @@ import math
 import pygame.surfarray as surfarray
 import copy
 from agent.const import *
+from quad_func import *
 
 class CustomEnvGA(gym.Env):
     def __init__(self, n_i, level_loc, paramethers,ray_number=7):
@@ -244,6 +245,8 @@ class CustomEnvGAWithQuads(gym.Env):
 
         self.check_number=0
 
+        self.from_state=False
+
 
 
 
@@ -306,13 +309,21 @@ class CustomEnvGAWithQuads(gym.Env):
 
 
         self.intersections=[]
+        if self.from_state:
+            screen=self.screen
+            car=self.car
+        else:
+            screen=None
+            car=None
         self.intersections.extend(new_ray_intersection(self.level.proportions[0],
                                         self.level.proportions[1], 
                                         self.car.x, 
                                         self.car.y,
                                         self.car.ori,
                                         self.ray_number,
-                                        self.level.walls))
+                                        self.level.walls,
+                                        screen,
+                                        car))
         
         # ntersection(max1, max2, x, y, ori, ray_number, walls, screen=None):
         
@@ -322,14 +333,17 @@ class CustomEnvGAWithQuads(gym.Env):
                                         self.car.y,
                                         math.atan2(self.car.vy, self.car.vx),
                                         self.ray_number,
-                                        self.level.walls))
+                                        self.level.walls,
+                                        screen,
+                                        car))
         
         for i in range(len(self.intersections)):
             self.intersections[i]=max(0, min(1, (self.intersections[i] / 2000 + 1) / 2))
 
 
         self.state.extend(self.intersections)
-    def step(self, action):
+    def step(self, action,from_state=False):
+        self.from_state=from_state
         self.car.rfx = 0
         self.car.rfy = 0
         self.car.ni = self.car.bni
@@ -392,32 +406,30 @@ class CustomEnvGAWithQuads(gym.Env):
         pygame.display.flip()
         self.clock.tick(self.FPS)
 
-        self.level.draw(self.screen,chosen_walls=self.chosen_walls)
-        # self.level.draw(self.screen)
+        if not self.from_state:
+            self.level.draw(self.screen,chosen_walls=self.chosen_walls)
+            # self.level.draw(self.screen)
 
-        self.level.checkpoints[self.check_number].draw(self.screen,(100,0,100))
-        self.car.show(self.screen)
+            self.level.checkpoints[self.check_number].draw(self.screen,(100,0,100))
+            self.car.show(self.screen)
 
-        textscore = self.font.render("Score: " + str(self.score), True, (255, 255, 255))
-        textsteps = self.font.render("Steps: " + str(self.steps), True, (255, 255, 255))
+            textscore = self.font.render("Score: " + str(self.score), True, (255, 255, 255))
+            textsteps = self.font.render("Steps: " + str(self.steps), True, (255, 255, 255))
 
-        self.screen.blit(textscore, (50, 50))
-        self.screen.blit(textsteps, (50, 100))
+            self.screen.blit(textscore, (50, 50))
+            self.screen.blit(textsteps, (50, 100))
 
-        # print(f"State: {self.state}")
+            self.last_screen_array = surfarray.array3d(self.screen)
+        else:
+            self.screen.fill(self.level.BACKGROUND_COLOR)
+            self.last_screen_array = surfarray.array3d(self.screen)
 
-        self.last_screen_array = surfarray.array3d(self.screen)
-        
-        # new_ray_intersection(self.level.proportions[0],
-        #                     self.level.proportions[1],
-        #                     self.car.x,
-        #                     self.car.y,
-        #                     self.car.ori,
-        #                     self.ray_number,
-        #                     self.level.walls,
-        #                     screen=self.screen)
+            textscore = self.font.render("Score: " + str(self.score), True, (255, 255, 255))
+            textsteps = self.font.render("Steps: " + str(self.steps), True, (255, 255, 255))
 
-        # draw_intersections(self.intersections,self.screen)
+            self.screen.blit(textscore, (50, 50))
+            self.screen.blit(textsteps, (50, 100))
 
+    
     def close(self):
         pygame.quit()

@@ -19,8 +19,8 @@ def save_record(array, filename):
     Save array clipped by 50 elements at the start and 50 at the end if longer than 100.
     If array has 100 or fewer elements, save the entire array.
     """
-    if len(array) > 160:
-        to_save = array[80:-80]  # Remove 50 from start, 50 from end
+    if len(array) > 120:
+        to_save = array[:-120]  # Remove 50 from start, 50 from end
     else:
         to_save = array  # Save all if <= 100
 

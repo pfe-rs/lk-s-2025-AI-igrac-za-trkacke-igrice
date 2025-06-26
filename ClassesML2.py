@@ -85,7 +85,8 @@ class Level:
     def add_wall(self, x1, y1, x2, y2):
         # Adds a wall (line) to the track
         self.walls.append(Line(x1, y1, x2, y2))
-        
+    def reset_quad_tree(self):
+        self.boolean_walls=quad_tree_from_list(self.walls,self)
     def draw(self, surface, checkers_truth=True,chosen_walls=None):
         surface.fill(self.BACKGROUND_COLOR)
         # Draw all walls of the track
@@ -390,7 +391,7 @@ def draw_intersections(intersections, screen):
                 
             
     
-def new_ray_intersection(max1, max2, x, y, ori, ray_number, walls, screen=None):
+def new_ray_intersection(max1, max2, x, y, ori, ray_number, walls, screen=None,car=None):
     rays = []
     ray_length = max(max1, max2) * 3  # Safe ray length
     angle_increment = 2 * 3.141592653589793 / (2 * ray_number - 2)
@@ -419,11 +420,21 @@ def new_ray_intersection(max1, max2, x, y, ori, ray_number, walls, screen=None):
         mins.append(closest_distance)
 
     if screen:
+        points = []
+
+        # Calculate endpoints of rays
         for i, (angle, _) in enumerate(rays):
-            end_x = x + mins[i] * math.cos(angle)
-            end_y = y + mins[i] * math.sin(angle)
-            pygame.draw.line(screen, 'gray', (x, y), (end_x, end_y), 1)
-            pygame.draw.circle(screen, 'yellow', (int(end_x), int(end_y)), 4)
+            distance = mins[i]
+            end_x = x + distance * math.cos(angle)
+            end_y = y + distance * math.sin(angle)
+            points.append((end_x, end_y))
+
+        # Draw filled polygon connecting all points
+        if len(points) >= 3:  # Minimum 3 points required to form a polygon
+            pygame.draw.polygon(screen, 'yellow', points, width=0)  # width=0 means filled
+        car.show(screen)
+
+
 
     return mins
 
