@@ -1,6 +1,8 @@
 from pathlib import Path
 import pickle
 import random
+
+import torch
 from ClassesML2 import Level
 
 class LevelManager:
@@ -40,3 +42,5 @@ class LevelManager:
     def get_by_path(cls, path: Path) -> Level:
         return cls.loaded_levels[path]
 
+def get_device() -> str:
+    return "cuda" if torch.cuda.is_available() else "cpu"

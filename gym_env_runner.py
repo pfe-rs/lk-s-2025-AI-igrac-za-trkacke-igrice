@@ -1,6 +1,5 @@
-from gym_env_custom import CustomEnvGA,CustomEnvGAWithQuads
+from gym_env_custom import CustomEnvGAWithQuads
 
-import random
 import pygame
 
 ray_number=7

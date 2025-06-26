@@ -1,2 +1,3 @@
 /models
-*/**/__pychache__
+**/__pycache__
+/recordings

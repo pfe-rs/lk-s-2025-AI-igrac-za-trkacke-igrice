@@ -7,16 +7,15 @@ import numpy as np
 from typing import Any, SupportsFloat
 import gymnasium as gym
 from ClassesML2 import Car, new_ray_intersection
-from Functions import car_from_parameters, level_loader
+from Functions import car_from_parameters
 from agent.reward import CalcRewardFunc, CalcRewardOpts, reward_strategies
 from agent.utils import LevelManager
-from common.const import *
+from agent.const import *
 from quad_func import get_chosen_ones
 import logging
 
 ObservationT = np.ndarray
 ActionT = np.ndarray
-
 
 logging.basicConfig(level=logging.INFO)
 
@@ -208,6 +207,7 @@ class Env(gym.Env[ObservationT, ActionT]):
         ))
         self.run_reward_history.append(reward)
 
+        # NOTE: Reward logging. Not used currently
         # logging.info(f"[Step {self.steps}] Reward Stage {self.current_reward_strategy} | "
         #          f"Reward: {reward:.5f} | "
         #          f"Velocity: {velocity_scalar:.2f} | "
@@ -264,6 +264,9 @@ class Env(gym.Env[ObservationT, ActionT]):
     ) -> tuple[ObservationT, dict[str, Any]]:
         super().reset(seed=seed, options=options)
 
+        self.level = self.level_manager.random()[0]
+        self._update_car_to_level()
+
         self.car.tostart(self.level.location)
         self.steps = 0
         self.score = 0
@@ -280,13 +283,11 @@ class Env(gym.Env[ObservationT, ActionT]):
         if self._should_switch_reward_strategy():
             self.current_reward_strategy = (self.current_reward_strategy + 1) % len(self.reward_strategies)
 
-        self.level = self.level_manager.random()[0]
-        self._update_car_to_level()
-
         return np.array(self.state.flatten(), dtype=np.float32), {"strategy": self.current_reward_strategy}
 
 
-def env_factory(level_path: Path) -> Env:
+def env_factory(levels_path: Path) -> Env:
     car_params = (5, 40, 20, [100, 200, 255], 1500, 10, (0, 0, 0), 5)
     car = car_from_parameters(car_params)
-    return Env(car, reward_strategies=reward_strategies)
+    return Env(car, level_manager=LevelManager(levels_path), reward_strategies=reward_strategies)
+

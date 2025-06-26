@@ -1,7 +1,6 @@
 import re
 from dataclasses import dataclass
 from pathlib import Path
-import sys
 from typing import List
 import matplotlib.pyplot as plt
 

@@ -5,13 +5,12 @@ from stable_baselines3 import PPO
 from pygame import surfarray
 
 from agent.ppo.env import env_factory
-from agent.device import get_device
 from Functions import level_loader
 
 # Constants
 maxsteps = 1500
 default_model_path = Path("./models/ppo_model.zip")
-default_level_path = Path("./levels/11.pkl")
+default_levels_path = Path("./levels")
 
 # Rendering function
 def render(screen, clock, font, env):
@@ -35,17 +34,17 @@ if __name__ == "__main__":
         print("Usage: python3 run_model.py <model_path> <level_path>")
 
     model_path = Path(sys.argv[1]) if len(sys.argv) > 1 else default_model_path
-    level_path = Path(sys.argv[2]) if len(sys.argv) > 2 else default_level_path
+    levels_path = Path(sys.argv[2]) if len(sys.argv) > 2 else default_levels_path
 
     if not model_path.exists():
         raise FileNotFoundError(f"Model not found at {model_path}")
-    if not level_path.exists():
-        raise FileNotFoundError(f"Level not found at {level_path}")
+    if not levels_path.exists():
+        raise FileNotFoundError(f"Level not found at {levels_path}")
 
-    env = env_factory(level_path)
-    level = level_loader(level_path)
+    env = env_factory(levels_path)
+    level = level_loader(levels_path)
 
-    model = PPO.load(model_path, env=env, device=get_device())
+    model = PPO.load(model_path, env=env, device="cpu")
 
     pygame.init()
     screen = pygame.display.set_mode((level.proportions[0], level.proportions[1]))

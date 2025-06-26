@@ -1,7 +1,6 @@
 import math
 from ClassesML2 import Line, Level, Car
 import pygame
-import pygame.surfarray as surfarray
 import cv2
 import pickle
 import os

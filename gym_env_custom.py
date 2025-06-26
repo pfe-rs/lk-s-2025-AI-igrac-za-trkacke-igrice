@@ -8,7 +8,7 @@ import numpy as np
 import math
 import pygame.surfarray as surfarray
 import copy
-from common.const import *
+from agent.const import *
 
 class CustomEnvGA(gym.Env):
     def __init__(self, n_i, level_loc, paramethers,ray_number=7):

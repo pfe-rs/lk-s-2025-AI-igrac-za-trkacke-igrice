@@ -1,19 +1,4 @@
-import pygame
-import sys
-import numpy as np
-import random
-import time
-import math
-import pickle
-import os
 from ClassesML2 import *
-
-
-
-
-
-
-
 
 
 def quad_list_from(input_tree,quads):
