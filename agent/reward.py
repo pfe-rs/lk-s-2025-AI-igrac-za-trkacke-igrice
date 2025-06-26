@@ -29,10 +29,9 @@ def calc_reward_stage_1(opts: CalcRewardOpts) -> float:
     reward = 0.0
 
     reward += opts.velocity_scalar * 0.2
-    wall_safe_threshold = 25.0
 
-    if opts.min_wall_distance < wall_safe_threshold:
-        reward -= (wall_safe_threshold - opts.min_wall_distance) * 1.5  # sharper wall penalty
+    if opts.min_wall_distance < 25.0:
+        reward -= (25.0 - opts.min_wall_distance) * 1.5  # sharper wall penalty
 
     if opts.checkpoint_activated:
         reward += 2.0
@@ -62,7 +61,7 @@ def calc_reward_stage_2(opts: CalcRewardOpts) -> float:
     if opts.crashed:
         reward -= 50
 
-    return reward * 0.005
+    return reward  * 0.005
 
 reward_strategies: list[CalcRewardFunc] = [
     calc_reward_stage_0,

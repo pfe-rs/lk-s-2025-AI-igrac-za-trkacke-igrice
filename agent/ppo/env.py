@@ -65,7 +65,7 @@ class Env(gym.Env[ObservationT, ActionT]):
         reward_strategies: list[CalcRewardFunc] = reward_strategies,
         inputs_count: int = inputs_count,
         rays_count: int = rays_count,
-        max_steps: int = 0,
+        max_steps: int = 16200,
     ) -> None:
         super(Env, self).__init__()
         self.action_space = gym.spaces.MultiBinary(4)

@@ -11,6 +11,8 @@ max_car_pull=10000
 max_car_vx=1000
 max_car_vy=1000
 
+actions = 4
+
 # for model input
 rays_count = 7
 params_count = 6

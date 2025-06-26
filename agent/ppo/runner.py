@@ -6,6 +6,7 @@ from pygame import surfarray
 
 from agent.ppo.env import env_factory
 from Functions import level_loader
+from agent.utils import LevelManager
 
 # Constants
 maxsteps = 1500
@@ -40,9 +41,11 @@ if __name__ == "__main__":
         raise FileNotFoundError(f"Model not found at {model_path}")
     if not levels_path.exists():
         raise FileNotFoundError(f"Level not found at {levels_path}")
+    
+    level_manager = LevelManager(levels_path)
 
     env = env_factory(levels_path)
-    level = level_loader(levels_path)
+    level = level_manager.random()[0]
 
     model = PPO.load(model_path, env=env, device="cpu")
 
