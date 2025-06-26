@@ -6,9 +6,11 @@ from pathlib import Path
 import numpy as np
 from typing import Any, SupportsFloat
 import gymnasium as gym
+from numpy.random import random
 from ClassesML2 import Car, Level, new_ray_intersection
 from Functions import car_from_parameters, level_loader
 from agent.reward import CalcRewardFunc, CalcRewardOpts, reward_strategies
+from agent.utils import LevelManager
 from common.const import *
 from quad_func import get_chosen_ones
 import logging
@@ -60,7 +62,7 @@ class EnvState: # NOTE: States have to be normalized
 class Env(gym.Env[ObservationT, ActionT]):
     def __init__(
         self,
-        level: Level,
+        level_manager: LevelManager,
         car: Car,
         reward_strategies: list[CalcRewardFunc] = reward_strategies,
         inputs_count: int = inputs_count,
@@ -76,9 +78,10 @@ class Env(gym.Env[ObservationT, ActionT]):
             dtype=np.float32,
         )
 
-        self.level = level
+        self.level = level_manager.random()[0]
+        self.level_manager = level_manager
         self.car = car
-        self.FPS = level.FPS
+        self.FPS = self.level.FPS
         self.ray_number=rays_count
 
         self.state = EnvState(
@@ -271,6 +274,8 @@ class Env(gym.Env[ObservationT, ActionT]):
 
         if self._should_switch_reward_strategy():
             self.current_reward_strategy = (self.current_reward_strategy + 1) % len(self.reward_strategies)
+
+        self.level = self.level_manager.random()[0]
 
         return np.array(self.state.flatten(), dtype=np.float32), {"strategy": self.current_reward_strategy}
 

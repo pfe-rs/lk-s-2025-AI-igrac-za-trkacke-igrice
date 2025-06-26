@@ -23,7 +23,10 @@ class LevelManager:
 
     @classmethod
     def random(cls, n: int = 1) -> list[Level]:
-        return random.sample(list(cls.loaded_levels.values()), k=n)
+        levels = list(cls.loaded_levels.values())
+        if n > len(levels):
+            raise ValueError(f"Requested {n} levels, but only {len(levels)} loaded.")
+        return random.sample(levels, k=n)
 
     @classmethod
     def get_all(cls) -> list[Level]:
