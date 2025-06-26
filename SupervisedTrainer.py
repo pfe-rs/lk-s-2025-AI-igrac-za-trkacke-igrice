@@ -5,6 +5,10 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 from modelArh import CarGameAgent
+from balance_it import load_and_balance_recordings_new,load_and_balance_recordings_only_gas  # your function
+from GATrainer import get_last_gen
+
+
 
 # === Parameters ===
 recordings_folder = "clean-codes/recordings/"
@@ -19,23 +23,10 @@ stanja = 4
 n_inputs = parametri + stanja + 2 * ray_number
 n_outputs = 4  # 4 actions: forward, brake, left, right
 
+# === Load and balance data using your function ===
+all_states, all_actions = load_and_balance_recordings_only_gas(recordings_folder=recordings_folder)
 
-# === Load Recordings ===
-all_states = []
-all_actions = []
-
-for filename in os.listdir(recordings_folder):
-    if filename.endswith(".pkl"):
-        with open(os.path.join(recordings_folder, filename), "rb") as f:
-            record = pickle.load(f)
-            for state, action in record:
-                all_states.append(state)
-                all_actions.append([float(a) for a in action])
-
-print(f"Loaded {len(all_states)} samples from recordings.")
-
-
-
+print(f"Loaded {len(all_states)} samples after balancing.")
 
 # === Convert to Tensors ===
 states_tensor = torch.tensor(all_states, dtype=torch.float32)
@@ -47,8 +38,13 @@ dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 # === Initialize Model ===
 model = CarGameAgent(n_inputs).to(device)
-criterion = nn.BCEWithLogitsLoss()  # For multi-label binary output
+
+pos_weight = torch.tensor([0.5, 2.0, 2.0, 1.5], device=device)  
+
+criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+
+pos_weight = torch.tensor([0.5, 2.0, 2.0, 1], device=device)  
 
 # === Training Loop ===
 model.train()
@@ -68,4 +64,8 @@ for epoch in range(epochs):
 
     print(f"Epoch {epoch + 1}/{epochs}, Loss: {epoch_loss:.4f}")
 
+filename="models_supervised/"+"model"+str(get_last_gen("models_supervised/")+1)+".pkl"
+torch.save(model.state_dict(), filename)
+
 print("Training complete.")
+

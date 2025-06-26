@@ -15,11 +15,11 @@ def car_from_parameters(parameters: dict):
 
 def save_record(array, filename):
     """
-    Save all elements except the last 100 to a pickle file, if array has more than 100 elements.
+    Save array clipped by 50 elements at the start and 50 at the end if longer than 100.
     If array has 100 or fewer elements, save the entire array.
     """
-    if len(array) > 100:
-        to_save = array[:-100]
+    if len(array) > 160:
+        to_save = array[80:-80]  # Remove 50 from start, 50 from end
     else:
         to_save = array  # Save all if <= 100
 

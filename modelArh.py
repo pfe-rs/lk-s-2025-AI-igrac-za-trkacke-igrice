@@ -224,3 +224,232 @@ class Population:
             torch.save(model.state_dict(), filename)
 
         print(f"Saved top {top_n} models to {save_path}")
+
+# def CarGameAgentDouble():
+#     def __init__(self, input_size):
+#         super(CarGameAgentDouble, self).__init__()
+
+#         self.fc1 = nn.Linear(input_size, 128)
+#         self.fc2 = nn.Linear(128, 128)
+#         self.fc3 = nn.Linear(128, 64)
+
+#         # Two separate heads:
+#         self.fc_gas_brake = nn.Linear(64, 2)   # Outputs: Gas, Brake
+#         self.fc_steering = nn.Linear(64, 2)    # Outputs: Steer Left, Steer Right
+
+#     def forward(self, x):
+#         x = F.relu(self.fc1(x))
+#         x = F.relu(self.fc2(x))
+#         x = F.relu(self.fc3(x))
+        
+#         gas_brake = torch.sigmoid(self.fc_gas_brake(x))    # 2 outputs
+#         steering = torch.sigmoid(self.fc_steering(x))      # 2 outputs
+        
+#         return gas_brake, steering
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class CarGameAgentDouble(nn.Module):
+    def __init__(self, input_size):
+        super(CarGameAgentDouble, self).__init__()
+
+        num_actions = 2  # [gas/brake] or [left/right]
+
+        self.fc1 = nn.Linear(input_size, 256)
+        self.fc2 = nn.Linear(256, 256)
+        self.fc3 = nn.Linear(256, 128)
+        self.fc4 = nn.Linear(128, 128)
+        self.fc5 = nn.Linear(128, 64)
+        self.output = nn.Linear(64, num_actions)
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3(x))
+        x = F.relu(self.fc4(x))
+        x = F.relu(self.fc5(x))
+        actions = self.output(x)
+        return actions
+
+
+
+class CombinedCarGameAgent(nn.Module):
+    def __init__(self, model_gas_brake, model_left_right):
+        super(CombinedCarGameAgent, self).__init__()
+        
+        self.model_gb = model_gas_brake  # Handles gas/brake
+        self.model_lr = model_left_right  # Handles left/right
+
+    def forward(self, x):
+        gas_brake = torch.sigmoid(self.model_gb(x))  # Expected shape: [batch_size, 2]
+        steering = torch.sigmoid(self.model_lr(x))  # Expected shape: [batch_size, 2]
+
+
+        combined_output = torch.cat([gas_brake, steering], dim=1)  # Final shape: [batch_size, 4]
+        
+        return combined_output
+    def run_in_environment(self, env, visualize=True, threshold=0.5, maxsteps=500, device="cuda"):
+        """
+        Runs the model in the environment once until done.
+
+        Args:
+            env: Initialized environment
+            visualize (bool): If True, shows pygame window
+            threshold (float): Action activation threshold
+            maxsteps (int): Max steps before auto-termination
+            device (str): 'cpu' or 'cuda' for running the model
+        """
+        self.to(device)  # Move model to desired device
+
+        if visualize:
+            env.start_pygame()
+
+        state = env.reset()
+        total_reward = 0
+        running = True
+
+        while running:
+            if visualize:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        running = False
+
+            # Move state to device
+            state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
+
+            with torch.no_grad():
+                action_probs = self(state_tensor)
+                
+
+            # Move actions back to CPU for compatibility with environment
+            chosen_actions = (action_probs > threshold).int().squeeze(0).cpu().tolist()
+
+            os.system('clear')
+            print(action_probs)
+            print(chosen_actions)
+
+
+            state, reward, done, steps, score = env.step(chosen_actions)
+            total_reward += reward
+
+            if visualize:
+                env.render()
+
+            if done or steps >= maxsteps:
+                running = False
+        self.to("cpu")
+        env.close()
+        return total_reward
+
+
+
+class CarGameAgentDoubleMaybe(nn.Module):
+    def __init__(self, input_size):
+        super(CarGameAgentDoubleMaybe, self).__init__()
+
+        num_actions = 3  # [gas, brake, neither]
+
+        self.fc1 = nn.Linear(input_size, 256)
+        self.fc2 = nn.Linear(256, 256)
+        self.fc3 = nn.Linear(256, 128)
+        self.fc4 = nn.Linear(128, 128)
+        self.fc5 = nn.Linear(128, 64)
+        self.output = nn.Linear(64, num_actions)
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3(x))
+        x = F.relu(self.fc4(x))
+        x = F.relu(self.fc5(x))
+        logits = self.output(x)  # Raw scores for each class
+        return logits
+
+
+
+
+class CombinedCarGameAgentMaybe(nn.Module):
+    def __init__(self, model_gas_brake, model_left_right):
+        super(CombinedCarGameAgentMaybe, self).__init__()
+        
+        self.model_gb = model_gas_brake  # Outputs logits for [gas, brake, neither]
+        self.model_lr = model_left_right  # Outputs logits for [left, right, neither]
+
+    def forward(self, x):
+        logits_gb = self.model_gb(x)  # Shape: [batch_size, 3]
+        logits_lr = self.model_lr(x)  # Shape: [batch_size, 3]
+
+        probs_gb = F.softmax(logits_gb, dim=1)  # Convert to probabilities
+        probs_lr = F.softmax(logits_lr, dim=1)
+
+        return probs_gb, probs_lr  # Return both probability distributions
+
+    def run_in_environment(self, env, visualize=True, maxsteps=500, device="cuda"):
+        """
+        Runs the model in the environment once until done.
+
+        Args:
+            env: Initialized environment
+            visualize (bool): If True, shows pygame window
+            maxsteps (int): Max steps before auto-termination
+            device (str): 'cpu' or 'cuda' for running the model
+        """
+        self.to(device)
+
+        if visualize:
+            env.start_pygame()
+
+        state = env.reset()
+        total_reward = 0
+        running = True
+
+        while running:
+            if visualize:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        running = False
+
+            state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
+
+            with torch.no_grad():
+                probs_gb, probs_lr = self(state_tensor)
+                
+
+            # Choose actions based on argmax
+            gb_choice = torch.argmax(probs_gb, dim=1).item()  # 0=gas, 1=brake, 2=neither
+            lr_choice = torch.argmax(probs_lr, dim=1).item()  # 0=left, 1=right, 2=neither
+
+
+            chosen_actions = [False, False, False, False]  # [gas, brake, left, right]
+
+            if gb_choice == 0:
+                chosen_actions[0] = True
+            elif gb_choice == 1:
+                chosen_actions[1] = True
+
+            if lr_choice == 0:
+                chosen_actions[2] = True
+            elif lr_choice == 1:
+                chosen_actions[3] = True
+
+            os.system('clear')
+
+            print(gb_choice)
+            print(lr_choice)
+            print(f"Gas/Brake probs: {probs_gb.cpu().numpy()}")
+            print(f"Left/Right probs: {probs_lr.cpu().numpy()}")
+            print(f"Chosen actions: {chosen_actions}")
+
+            state, reward, done, steps, score = env.step(chosen_actions)
+            total_reward += reward
+
+            if visualize:
+                env.render()
+
+            if done or steps >= maxsteps:
+                running = False
+
+        self.to("cpu")
+        env.close()
+        return total_reward

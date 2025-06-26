@@ -24,7 +24,7 @@ state = env.reset()
 # Recording storage
 record = []
 
-number=2
+number=5
 
 # === Game Loop ===
 running = True
@@ -47,7 +47,7 @@ while running:
     if keys[pygame.K_d]:
         action[3] = True
 
-    # Save current state and action
+    # Save current state and action 
     record.append([env.state, action])
 
     # Step environment
