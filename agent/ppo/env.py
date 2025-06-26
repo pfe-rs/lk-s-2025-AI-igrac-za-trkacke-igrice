@@ -176,7 +176,7 @@ class Env(gym.Env[ObservationT, ActionT]):
         state = self._get_state()
 
         min_wall_distance: float = min(state._intersections)
-        velocity_scalar: float = math.hypot(self.car.vx, self.car.vy)
+        velocity_scalar: float = clamp(math.hypot(self.car.vx, self.car.vy)/max_velocity_scalar)
 
         crashed: bool = False
         terminated: bool = False

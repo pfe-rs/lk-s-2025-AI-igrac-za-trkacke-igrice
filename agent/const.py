@@ -10,6 +10,7 @@ max_car_pull=10000
 
 max_car_vx=1000
 max_car_vy=1000
+max_velocity_scalar = 1400
 
 actions = 4
 
