@@ -1,11 +1,9 @@
 import os
-from typing import Callable
-import gym
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from ClassesML2 import *
-from agent.device import get_device
+from agent.utils import get_device
 from custom_arch import batched_forward
 
 class CarGameAgent(nn.Module):

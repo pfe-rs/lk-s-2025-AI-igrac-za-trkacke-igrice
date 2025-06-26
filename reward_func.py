@@ -1,18 +1,5 @@
-import gym
-from gym import spaces
-import numpy as np
 from ClassesML2 import *
 from Functions import *
-import pygame
-import sys
-import numpy as np
-import random
-import math
-import pickle 
-import pygame.surfarray as surfarray
-import copy
-import os
-
 
 
 def phase1_reward(intersections,collision_with_wall,safety_threshold):

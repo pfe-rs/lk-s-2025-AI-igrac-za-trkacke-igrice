@@ -1,6 +1,6 @@
 import sys
 import torch
-from agent.device import get_device
+from agent.utils import get_device
 from modelArh import CarGameAgent, Population
 from gym_env_custom import CustomEnvGAWithQuads
 import os

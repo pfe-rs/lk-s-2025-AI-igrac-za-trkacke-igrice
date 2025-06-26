@@ -1,20 +1,14 @@
-from typing import Optional
 import gym
 from gym import spaces
-from gymnasium.core import ObsType
 import numpy as np
 from ClassesML2 import *
 from Functions import *
 import pygame
-import sys
 import numpy as np
-import random
 import math
-import pickle 
 import pygame.surfarray as surfarray
 import copy
-import os
-from static_const import *
+from agent.const import *
 
 class CustomEnvGA(gym.Env):
     def __init__(self, n_i, level_loc, paramethers,ray_number=7):
@@ -358,7 +352,6 @@ class CustomEnvGAWithQuads(gym.Env):
 
 
         decided_quad=self.car.decide_quad(self.level)
-       
         self.chosen_walls= get_chosen_ones(self.level.walls,self.level.boolean_walls,decided_quad)
 
         # print(len(self.chosen_walls))
@@ -414,8 +407,6 @@ class CustomEnvGAWithQuads(gym.Env):
         # print(f"State: {self.state}")
 
         self.last_screen_array = surfarray.array3d(self.screen)
-
-        
         
         # new_ray_intersection(self.level.proportions[0],
         #                     self.level.proportions[1],

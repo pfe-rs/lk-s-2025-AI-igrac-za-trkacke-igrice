@@ -1,8 +1,6 @@
 from gym_env_custom import CustomEnvGAWithQuads
-import random
 import pygame
-from Functions import load_record, save_record
-from GATrainer import get_last_gen
+from Functions import save_record
 
 # === Parameters ===
 ray_number = 7

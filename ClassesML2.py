@@ -1,12 +1,7 @@
 import pygame
-import sys
 import numpy as np
-import random
-import time
 import math
-import pickle
-import os
-from quad_func import *
+from quad_func import quad_tree_from_list
 
 class Line:
     def __init__(self, x1, y1, x2, y2):
@@ -94,7 +89,7 @@ class Level:
     def draw(self, surface, checkers_truth=True,chosen_walls=None):
         surface.fill(self.BACKGROUND_COLOR)
         # Draw all walls of the track
-        if chosen_walls==None:
+        if chosen_walls is None:
             for wall in self.walls:
                 wall.draw(surface,([0,255,255]))
         else:

@@ -1,4 +1,5 @@
 import torch
+from torch._prims_common import Tensor
 import torch.nn.functional as F
 
 def batched_linear(inputs, weights, biases):
@@ -16,7 +17,7 @@ def batched_linear(inputs, weights, biases):
     return torch.bmm(weights, inputs.unsqueeze(2)).squeeze(2) + biases
 
 
-def batched_forward(states, models, device):
+def batched_forward(states: Tensor, models, device: str):
     """
     Runs a true batched forward pass with different models, same architecture.
 
@@ -53,8 +54,4 @@ def batched_forward(states, models, device):
     actions = torch.sigmoid(batched_linear(x, w4, b4))
 
     return actions  # [B, num_actions]
-
-
-
-
 

@@ -1,5 +1,5 @@
 import sys
-from agent.device import get_device
+from agent.utils import get_device
 from modelArh import CarGameAgent
 from gym_env_custom import CustomEnvGAWithQuads
 import time
