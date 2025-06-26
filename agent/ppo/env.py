@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from collections import deque
 import statistics
 import math
 from pathlib import Path
@@ -101,6 +102,9 @@ class Env(gym.Env[ObservationT, ActionT]):
         self.small_change_streak = 0
         self.run_reward_history = [] # inside one run
         self.avg_reward_history = [] # between runs
+        # So we can rewind
+        self.position_history = deque(maxlen=32)
+        self._frame_skip_counter = 0
     
     def _upd_state(self) -> None:
         intersections: list[float] = [] # not-normalized distances to the walls
@@ -153,6 +157,11 @@ class Env(gym.Env[ObservationT, ActionT]):
         self.car.ac(self.FPS)
         self.car.step(self.FPS)
 
+        self._frame_skip_counter += 1
+        if self._frame_skip_counter >= 5:
+            self._frame_skip_counter = 0
+            self.position_history.append((self.car.x, self.car.y, self.car.ori))
+
         decided_quad = self.car.decide_quad(self.level)
         self.chosen_walls = get_chosen_ones(self.level.walls,self.level.boolean_walls,decided_quad)
 
@@ -163,9 +172,16 @@ class Env(gym.Env[ObservationT, ActionT]):
         velocity_scalar: float = math.hypot(self.car.vx, self.car.vy)
 
         crashed: bool = False
+        terminated: bool = False
         if self.car.wallinter(self.chosen_walls):
             crashed = True
-            self.run = False
+            if self.position_history:
+                self.car.tostart(self.position_history[0])
+            else:
+                print("no pos history")
+                self.run = False
+                terminated = True
+
 
         # check if checkpoint activated
         checkpoint_activated = False
@@ -203,7 +219,7 @@ class Env(gym.Env[ObservationT, ActionT]):
             return observation, reward, False, truncated, info
         
         self.steps += 1
-        return observation, reward, crashed, False, info
+        return observation, reward, terminated, False, info
 
     def _should_switch_reward_strategy(self) -> bool:
         if len(self.reward_strategies) <= 1:
