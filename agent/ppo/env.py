@@ -6,8 +6,7 @@ from pathlib import Path
 import numpy as np
 from typing import Any, SupportsFloat
 import gymnasium as gym
-from numpy.random import random
-from ClassesML2 import Car, Level, new_ray_intersection
+from ClassesML2 import Car, new_ray_intersection
 from Functions import car_from_parameters, level_loader
 from agent.reward import CalcRewardFunc, CalcRewardOpts, reward_strategies
 from agent.utils import LevelManager
@@ -62,8 +61,8 @@ class EnvState: # NOTE: States have to be normalized
 class Env(gym.Env[ObservationT, ActionT]):
     def __init__(
         self,
-        level_manager: LevelManager,
         car: Car,
+        level_manager: LevelManager = LevelManager(Path("./levels")),
         reward_strategies: list[CalcRewardFunc] = reward_strategies,
         inputs_count: int = inputs_count,
         rays_count: int = rays_count,
@@ -78,11 +77,12 @@ class Env(gym.Env[ObservationT, ActionT]):
             dtype=np.float32,
         )
 
-        self.level = level_manager.random()[0]
         self.level_manager = level_manager
-        self.car = car
+        self.level = level_manager.random()[0]
         self.FPS = self.level.FPS
         self.ray_number=rays_count
+        self.car = car
+        self._update_car_to_level()
 
         self.state = EnvState(
             car_mass=clamp(self.car.mass/max_car_mass),
@@ -138,6 +138,11 @@ class Env(gym.Env[ObservationT, ActionT]):
         self.state.car_rotation_cos = clamp((math.cos(self.car.ori)+1)/2)
         self.state.intersections = intersections_normalized
         self.state._intersections = intersections
+
+    def _update_car_to_level(self):
+        self.car.x = self.level.location[0]
+        self.car.y = self.level.location[1] 
+        self.car.ori = self.level.location[2]
 
     def _get_state(self) -> EnvState:
         self._upd_state()
@@ -276,14 +281,12 @@ class Env(gym.Env[ObservationT, ActionT]):
             self.current_reward_strategy = (self.current_reward_strategy + 1) % len(self.reward_strategies)
 
         self.level = self.level_manager.random()[0]
+        self._update_car_to_level()
 
         return np.array(self.state.flatten(), dtype=np.float32), {"strategy": self.current_reward_strategy}
 
 
 def env_factory(level_path: Path) -> Env:
-    level = level_loader(level_path)
     car_params = (5, 40, 20, [100, 200, 255], 1500, 10, (0, 0, 0), 5)
     car = car_from_parameters(car_params)
-    car.x = level.location[0]
-    car.y = level.location[1] 
-    return Env(level, car, reward_strategies=reward_strategies)
+    return Env(car, reward_strategies=reward_strategies)
