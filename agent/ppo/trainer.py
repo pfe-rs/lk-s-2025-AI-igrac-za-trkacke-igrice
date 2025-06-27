@@ -3,9 +3,9 @@ from stable_baselines3 import PPO
 from pathlib import Path
 
 from stable_baselines3.common.logger import configure
+from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor, VecNormalize
 from agent.base_trainer import BaseTrainer
 from agent.ppo.env import env_factory
-from stable_baselines3.common.monitor import Monitor
 
 
 def get_latest_checkpoint(path: Path) -> Path | None:
@@ -14,16 +14,18 @@ def get_latest_checkpoint(path: Path) -> Path | None:
 
 
 class PPOTrainer(BaseTrainer):
-    DEFAULT_MODEL_PATH = Path("./models/ppo_model")
-    DEFAULT_CHECKPOINTS_PATH = Path("./models/ppo_checkpoints")
-    DEFAULT_BEST_PATH = Path("./models/ppo_best")
-    DEFAULT_LOG_PATH = Path("./logs/ppo_training")
+    DEFAULT_MODEL_PATH = Path("models/ppo_model")
+    DEFAULT_CHECKPOINTS_PATH = Path("models/ppo_checkpoints")
+    DEFAULT_BEST_PATH = Path("models/ppo_best")
+    DEFAULT_LOG_PATH = Path("logs/ppo_training")
     model: PPO
 
     def __init__(self):
         super().__init__()
         self.args = self._parse_args()
-        self.env = Monitor(env_factory(self.args.levels_path))
+        self.env = SubprocVecEnv([lambda: env_factory(self.args.levels_path)])
+        self.env = VecMonitor(self.env)
+        self.env = VecNormalize(self.env, norm_obs=True, norm_reward=True)
         model_path = self.args.model_path
 
         if model_path.exists():

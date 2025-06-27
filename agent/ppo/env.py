@@ -61,11 +61,12 @@ class Env(gym.Env[ObservationT, ActionT]):
     def __init__(
         self,
         car: Car,
-        level_manager: LevelManager = LevelManager(Path("./levels")),
+        level_manager: LevelManager,
         reward_strategies: list[CalcRewardFunc] = reward_strategies,
         inputs_count: int = inputs_count,
         rays_count: int = rays_count,
         max_steps: int = 16200,
+        init_lives_count: int = 30
     ) -> None:
         super(Env, self).__init__()
         self.action_space = gym.spaces.MultiBinary(4)
@@ -107,6 +108,8 @@ class Env(gym.Env[ObservationT, ActionT]):
         # So we can rewind
         self.position_history = deque(maxlen=32)
         self._frame_skip_counter = 0
+        self.init_lives_count = init_lives_count
+        self.lives_count = init_lives_count
     
     def _upd_state(self) -> None:
         intersections: list[float] = [] # not-normalized distances to the walls
@@ -137,6 +140,9 @@ class Env(gym.Env[ObservationT, ActionT]):
         self.state.car_rotation_cos = clamp((math.cos(self.car.ori)+1)/2)
         self.state.intersections = intersections_normalized
         self.state._intersections = intersections
+        # To don't rewind those that die too fast
+        self.steps_since_rewind = 0
+        self.rewind_threshold = 200
 
     def _update_car_to_level(self):
         self.car.x = self.level.location[0]
@@ -144,7 +150,6 @@ class Env(gym.Env[ObservationT, ActionT]):
         self.car.ori = self.level.location[2]
 
     def _get_state(self) -> EnvState:
-        self._upd_state()
         return self.state
 
     def step(self, action: ActionT) -> tuple[ObservationT, SupportsFloat, bool, bool, dict[str, Any]]:
@@ -182,10 +187,11 @@ class Env(gym.Env[ObservationT, ActionT]):
         terminated: bool = False
         if self.car.wallinter(self.chosen_walls):
             crashed = True
-            if self.position_history:
+            if self.position_history and self.lives_count > 0 and self.steps >= self.rewind_threshold:
+                self.steps_since_rewind = 0
+                self.lives_count -= 1
                 self.car.tostart(self.position_history[0])
             else:
-                print("no pos history")
                 self.run = False
                 terminated = True
 
@@ -200,20 +206,13 @@ class Env(gym.Env[ObservationT, ActionT]):
             self.score += 1
 
         reward: float = self.reward_strategies[self.current_reward_strategy](CalcRewardOpts(
+            self.steps_since_rewind,
             min_wall_distance,
             velocity_scalar,
             crashed,
             checkpoint_activated,
         ))
         self.run_reward_history.append(reward)
-
-        # NOTE: Reward logging. Not used currently
-        # logging.info(f"[Step {self.steps}] Reward Stage {self.current_reward_strategy} | "
-        #          f"Reward: {reward:.5f} | "
-        #          f"Velocity: {velocity_scalar:.2f} | "
-        #          f"MinWallDist: {min_wall_distance:.2f} | "
-        #          f"Crashed: {crashed} | "
-        #          f"Checkpoint: {checkpoint_activated}")
 
         observation = np.array(state.flatten(), dtype=np.float32)
         info = {
@@ -227,6 +226,7 @@ class Env(gym.Env[ObservationT, ActionT]):
             return observation, reward, False, truncated, info
         
         self.steps += 1
+        self.steps_since_rewind += 1
         return observation, reward, terminated, False, info
 
     def _should_switch_reward_strategy(self) -> bool:
@@ -270,6 +270,7 @@ class Env(gym.Env[ObservationT, ActionT]):
         self.car.tostart(self.level.location)
         self.steps = 0
         self.score = 0
+        self.lives_count = self.init_lives_count
         self.run = True
         self.check_number = 0
 
@@ -289,5 +290,4 @@ class Env(gym.Env[ObservationT, ActionT]):
 def env_factory(levels_path: Path) -> Env:
     car_params = (5, 40, 20, [100, 200, 255], 1500, 10, (0, 0, 0), 5)
     car = car_from_parameters(car_params)
-    return Env(car, level_manager=LevelManager(levels_path), reward_strategies=reward_strategies)
-
+    return Env(car, LevelManager(levels_path), reward_strategies=reward_strategies)
