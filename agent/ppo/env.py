@@ -12,7 +12,7 @@ from agent.ppo.state import INPUTS_COUNT, RAYS_COUNT, EnvState
 from agent.utils import LevelManager
 from agent.const import *
 from game.common import line_to_tuple
-from game.ray import calc_rays, calculate_ray_hits, group_hits_by_opposite_pairs, min_opposite_ray_pair
+from game.ray import Ray, calc_rays, calculate_ray_hits, group_hits_by_opposite_pairs, min_opposite_ray_pair
 from quad_func import get_chosen_ones
 import logging
 
@@ -131,11 +131,15 @@ class Env(gym.Env[ObservationT, ActionT]):
         self.chosen_walls = get_chosen_ones(self.level.walls, self.level.boolean_walls, decided_quad)
 
         intersections: list[float] = RAYS_COUNT * [1.0] # normalized distances to walls
+        rays: list[Ray] = [] 
         for ray in self.rays:
-            ray.origin = self.car.pos
-            ray.rotation = self.car.ori
+            rays.append(Ray(
+                ray.length,
+                ray.origin+self.car.pos,
+                ray.rotation+self.car.ori,
+            ))
 
-        ray_hits = calculate_ray_hits(self.rays, self.chosen_walls)
+        ray_hits = calculate_ray_hits(rays, self.chosen_walls)
         
         for ray_hit in ray_hits: # append normalized distance to walls
             intersections[ray_hit.ray_index] = clamp(0, 1, ray_hit.distance/self.max_distance)

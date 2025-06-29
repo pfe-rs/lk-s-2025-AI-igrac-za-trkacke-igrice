@@ -180,7 +180,7 @@ def min_opposite_ray_pair(hits: list[RayHit], total_rays: int) -> tuple[RayHit, 
         if not hit_a or not hit_b:
             continue
         len_sum = hit_a.distance + hit_b.distance
-        if len_sum < min_opposite_pairs_len or min_opposite_pairs_len == -1:
+        if len_sum < min_opposite_pairs_len or min_opposite_pairs_len < 0 :
             min_opposite_pairs_len = len_sum
             min_opposite_pairs_idx = i
 

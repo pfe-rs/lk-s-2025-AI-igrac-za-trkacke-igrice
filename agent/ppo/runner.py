@@ -52,8 +52,6 @@ def render(screen: SurfaceType, clock: Clock, font: Font, env: Env):
     env.car.draw(screen)
     if env.min_opposite_hits:
         hit_a, hit_b = env.min_opposite_hits
-        print("a", hit_a.wall.x1)
-        print("b", hit_b.wall.x1)
         pygame.draw.line(screen, Color(255, 0, 0),
             (hit_a.wall.x1, hit_a.wall.y1),
             (hit_a.wall.x2, hit_a.wall.y2), 3)
