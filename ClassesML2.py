@@ -180,6 +180,14 @@ class Car:
                 quads[3]=True
         return quads
 
+    def max_velocity(self):
+        v_max: float = self.pull / self.k
+        return {
+            "v": v_max,
+            "x": v_max * math.cos(self.ori),
+            "y": v_max * math.sin(self.ori),
+        }
+
     def show(self, screen):
         cos_ori = math.cos(self.ori)
         sin_ori = math.sin(self.ori)
@@ -236,7 +244,7 @@ class Car:
         self.rfy+=self.pull*math.sin(self.ori)
     def friction(self,g):
 
-        velocity_magnitude = math.sqrt(self.vx**2 + self.vy**2)
+        velocity_magnitude = math.hypot(self.vx, self.vy)
 
         if(velocity_magnitude!=0):
             self.rfx-=(self.mass*g)*self.ni*(self.vx/velocity_magnitude)

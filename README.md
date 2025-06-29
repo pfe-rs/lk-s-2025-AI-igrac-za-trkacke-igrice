@@ -38,3 +38,8 @@ Taining logs are available through tensor board
 ```sh
 tensorboard --logdir ./logs/ppo_training
 ```
+
+#### Clean up PPO training
+```sh
+rm -r ./models/ppo* ./logs/ppo*
+```

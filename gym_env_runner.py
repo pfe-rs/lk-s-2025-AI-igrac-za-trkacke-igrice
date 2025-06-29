@@ -8,7 +8,7 @@ stanja=4
 
 # === Hyperparameters ===
 n_inputs = parametri+stanja+2*ray_number              # Number of rays/sensors
-level_file = "clean-codes/levels/8.pkl"
+level_file = "levels"
 
 
 car_params = (5,40,20,([100,200,255]),1500,10,(0,0,0),5)  # Example car: mass, length, width, color, pull, ni

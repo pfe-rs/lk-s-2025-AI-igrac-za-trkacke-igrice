@@ -1,16 +1,18 @@
-from dataclasses import dataclass, field
 from collections import deque
-import statistics
 import math
 from pathlib import Path
 import numpy as np
 from typing import Any, SupportsFloat
 import gymnasium as gym
-from ClassesML2 import Car, new_ray_intersection
-from Functions import car_from_parameters
-from agent.reward import CalcRewardFunc, CalcRewardOpts, reward_strategies
+from pygame import Vector2
+from agent.ppo import guidelines
+from agent.ppo.reward import DefaultRewarder, Rewarder
+from game.car import Car, car_from_parameters
+from agent.ppo.state import INPUTS_COUNT, RAYS_COUNT, EnvState
 from agent.utils import LevelManager
 from agent.const import *
+from game.common import line_to_tuple
+from game.ray import calc_rays, calculate_ray_hits, group_hits_by_opposite_pairs, min_opposite_ray_pair
 from quad_func import get_chosen_ones
 import logging
 
@@ -19,42 +21,18 @@ ActionT = np.ndarray
 
 logging.basicConfig(level=logging.INFO)
 
-def clamp(val: float) -> float:
-    return max(0.0, min(1.0, val))
 
-@dataclass
-class EnvState: # NOTE: States have to be normalized
-    car_mass: float = 0.0
-    car_length: float = 0.0
-    car_width: float = 0.0
-    car_friction: float = 0.0
-    car_brake_friction_multiplier: float = 0.0
-    car_pull: float = 0.0
-    car_rotation_sin: float = 0.5
-    car_rotation_cos: float = 0.5
-    car_velocity_x: float = 0.5
-    car_velocity_y: float = 0.5
-    # normalized distances to walls
-    intersections: list[float] = field(default_factory=list)
-    # not-normalized distances to walls, used for calculating reward
-    # do not use for training ai
-    # not in the flatten output
-    _intersections: list[float] = field(default_factory=list)
+def clamp(min_v: float, max_v: float, val: float) -> float:
+    return max(max_v, min(min_v, val))
 
-    def flatten(self) -> list[float]:
-        return [
-            self.car_mass,
-            self.car_length,
-            self.car_width,
-            self.car_friction,
-            self.car_brake_friction_multiplier,
-            self.car_pull,
-            self.car_rotation_sin,
-            self.car_rotation_cos,
-            self.car_velocity_x,
-            self.car_velocity_y,
-            *self.intersections,
-        ]
+def get_line_in_between(
+    l1: tuple[Vector2, Vector2],
+    l2: tuple[Vector2, Vector2],
+) -> tuple[Vector2, Vector2]:
+    return (
+        (l1[0] + l2[0]) * 0.5,
+        (l1[1] + l2[1]) * 0.5,
+    )
 
 
 class Env(gym.Env[ObservationT, ActionT]):
@@ -62,9 +40,8 @@ class Env(gym.Env[ObservationT, ActionT]):
         self,
         car: Car,
         level_manager: LevelManager,
-        reward_strategies: list[CalcRewardFunc] = reward_strategies,
-        inputs_count: int = inputs_count,
-        rays_count: int = rays_count,
+        rewarder: Rewarder,
+        inputs_count: int = INPUTS_COUNT,
         max_steps: int = 16200,
         init_lives_count: int = 30
     ) -> None:
@@ -80,199 +57,183 @@ class Env(gym.Env[ObservationT, ActionT]):
         self.level_manager = level_manager
         self.level = level_manager.random()[0]
         self.FPS = self.level.FPS
-        self.ray_number=rays_count
         self.car = car
-        self._update_car_to_level()
+
+        self.level = self.level_manager.random()[0]
+        self._on_level_update()
 
         self.state = EnvState(
-            car_mass=clamp(self.car.mass/max_car_mass),
-            car_length=clamp(self.car.length/max_car_length),
-            car_width=clamp(self.car.width/max_car_width),
-            car_brake_friction_multiplier=(self.car.k/max_car_k),
+            car_mass=clamp(0, 1, self.car.mass/max_car_mass),
+            car_length=clamp(0, 1, self.car.length/max_car_length),
+            car_width=clamp(0, 1, self.car.width/max_car_width),
+            car_brake_friction_multiplier=clamp(0, 1, self.car.brake_friction_multiplier/max_car_k),
         )
-        self.current_checkpoint_idx = 0
 
         self.steps = 0
-        self.max_steps: int = max_steps
         self.score = 0
+        self.max_steps: int = max_steps
         self.run = True
 
-        # For choosing strategy
-        self.reward_strategies = reward_strategies
-        self.current_reward_strategy = 0
-        # When this number is too big -- we change strategy
-        self.min_runs_without_strategy_switch = 300
-        self.small_change_streak = 0
+        self.rays = calc_rays(RAYS_COUNT,
+            0, Vector2(0, 0), self.max_distance
+        )
+
+        self.rewarder = rewarder
         self.run_reward_history = [] # inside one run
         self.avg_reward_history = [] # between runs
-        # So we can rewind
-        self.position_history = deque(maxlen=32)
-        self._frame_skip_counter = 0
+        # Rewinding
+        self.position_history = deque(maxlen=20)
         self.init_lives_count = init_lives_count
         self.lives_count = init_lives_count
-    
-    def _upd_state(self) -> None:
-        intersections: list[float] = [] # not-normalized distances to the walls
-        intersections.extend(new_ray_intersection(self.level.proportions[0],
-                                        self.level.proportions[1], 
-                                        self.car.x, 
-                                        self.car.y,
-                                        self.car.ori,
-                                        self.ray_number,
-                                        self.level.walls))
-        intersections.extend(new_ray_intersection(self.level.proportions[0],
-                                        self.level.proportions[1], 
-                                        self.car.x, 
-                                        self.car.y,
-                                        math.atan2(self.car.vy, self.car.vx),
-                                        self.ray_number,
-                                        self.level.walls))
-        # allocating normalized array
-        intersections_normalized: list[float] = [0] * len(intersections)
-        for i in range(len(intersections)):
-            intersections_normalized[i]=clamp((intersections[i] / 2000 + 1) / 2)
-
-        self.state.car_friction = clamp(self.car.ni/max_car_ni)
-        self.state.car_pull = clamp(self.car.pull/max_car_pull)
-        self.state.car_velocity_x = clamp(self.car.vx/max_car_vx)
-        self.state.car_velocity_y = clamp(self.car.vy/max_car_vy)
-        self.state.car_rotation_sin = clamp((math.sin(self.car.ori)+1)/2)
-        self.state.car_rotation_cos = clamp((math.cos(self.car.ori)+1)/2)
-        self.state.intersections = intersections_normalized
-        self.state._intersections = intersections
-        # To don't rewind those that die too fast
-        self.steps_since_rewind = 0
         self.rewind_threshold = 200
 
-    def _update_car_to_level(self):
-        self.car.x = self.level.location[0]
-        self.car.y = self.level.location[1] 
-        self.car.ori = self.level.location[2]
+        self.max_distance = math.hypot( # max distance for the level
+            self.level.proportions[0],
+            self.level.proportions[1],
+        )
+        # if car rotates too much away from prev ok direction -- we keep it
+        self.prev_ok_direction = self.car.ori
+        
+        # Initialize guideline system with car and level parameters
+        self.guideline = None
+        self._build_guidelines()
 
-    def _get_state(self) -> EnvState:
-        return self.state
+    def _build_guidelines(self):
+        """Build the global guideline system from wall middlelines."""
+        # Generate sample rays to find middlelines across the track
+        sample_rays = calc_rays(RAYS_COUNT, 0, self.car.pos, self.max_distance)
+        for ray in sample_rays:
+            ray.origin = self.car.pos
+            ray.rotation = self.car.ori
+        
+        # Get initial ray hits to establish middlelines
+        ray_hits = calculate_ray_hits(sample_rays, self.level.walls)
+        opposite_hits_pairs = group_hits_by_opposite_pairs(ray_hits, RAYS_COUNT)
+        
+        # Extract middlelines from opposite wall pairs
+        middlelines = []
+        for hit_a, hit_b in opposite_hits_pairs:
+            if hit_a and hit_b:
+                middleline = get_line_in_between(line_to_tuple(hit_a.wall), line_to_tuple(hit_b.wall))
+                middlelines.append(middleline)
+        
+        # Build consistent guideline path with dynamic parameters
+        self.guideline = guidelines.GuidelineBuilder(
+            self.car.pos, 
+            self.car.ori,
+            car_length=self.car.length,
+            level_scale=self.max_distance
+        )
+        self.guideline.build(middlelines)
+    
+    def _upd_state(self) -> None:
+        decided_quad = self.car.decide_quad(self.level)
+        self.chosen_walls = get_chosen_ones(self.level.walls, self.level.boolean_walls, decided_quad)
+
+        intersections: list[float] = RAYS_COUNT * [1.0] # normalized distances to walls
+        for ray in self.rays:
+            ray.origin = self.car.pos
+            ray.rotation = self.car.ori
+
+        ray_hits = calculate_ray_hits(self.rays, self.chosen_walls)
+        
+        for ray_hit in ray_hits: # append normalized distance to walls
+            intersections[ray_hit.ray_index] = clamp(0, 1, ray_hit.distance/self.max_distance)
+        self.state.intersections = intersections
+        
+        self.state.car_friction = clamp(0, 1, self.car.friction_coeff/max_car_ni)
+        self.state.car_pull = clamp(0, 1, self.car.pull/max_car_pull)
+
+        self.state.car_velocity_x = clamp(-1, 1, self.car.vel.x/self.max_distance)
+        self.state.car_velocity_y = clamp(-1, 1, self.car.vel.y/self.max_distance)
+        self.state.car_rotation_sin = clamp(-1, 1, math.sin(self.car.ori))
+        self.state.car_rotation_cos = clamp(-1, 1, math.cos(self.car.ori))
+
+        self.min_opposite_hits = min_opposite_ray_pair(ray_hits, RAYS_COUNT)
+        if not self.min_opposite_hits:
+            # Fallback to car's forward direction if no guideline available
+            self.state.direction_cos = clamp(-1, 1, math.cos(self.car.ori))
+            self.state.direction_sin = clamp(-1, 1, math.sin(self.car.ori))
+        else:
+            # TODO: Get direction
+            pass
+
+
+    def _on_level_update(self):
+        self.max_distance = math.hypot( # max distance for the level
+            self.level.proportions[0],
+            self.level.proportions[1],
+        )
+        self.car.to_start(
+            Vector2(self.level.location[0], self.level.location[1]),
+            self.level.location[2]
+        )
 
     def step(self, action: ActionT) -> tuple[ObservationT, SupportsFloat, bool, bool, dict[str, Any]]:
-        self.car.rfx = 0
-        self.car.rfy = 0
-        self.car.ni = self.car.bni
-
         # Process binary actions
         if action[0]: self.car.gas()
         if action[1]: self.car.brake()
-        if action[2]: self.car.steerleft()
-        if action[3]: self.car.steerright()
+        if action[2]: self.car.steer_left()
+        if action[3]: self.car.steer_right()
 
         # Physics and state update
-        self.car.Ori()
-        self.car.friction(self.level.g)
-        self.car.ac(self.FPS)
+        self.car.normalize_orientation()
+        self.car.apply_friction(self.level.g)
+        self.car.accelerate(self.FPS)
         self.car.step(self.FPS)
 
-        self._frame_skip_counter += 1
-        if self._frame_skip_counter >= 5:
-            self._frame_skip_counter = 0
-            self.position_history.append((self.car.x, self.car.y, self.car.ori))
+        if self.steps % 5 == 0: # every fiftth frame
+            self.position_history.append((self.car.pos, self.car.ori))
 
         decided_quad = self.car.decide_quad(self.level)
         self.chosen_walls = get_chosen_ones(self.level.walls,self.level.boolean_walls,decided_quad)
 
         self._upd_state()
-        state = self._get_state()
 
-        min_wall_distance: float = min(state._intersections)
-        velocity_scalar: float = clamp(math.hypot(self.car.vx, self.car.vy)/max_velocity_scalar)
-
-        crashed: bool = False
         terminated: bool = False
-        if self.car.wallinter(self.chosen_walls):
+        if self.car.intersects_line(self.chosen_walls):
             crashed = True
-            if self.position_history and self.lives_count > 0 and self.steps >= self.rewind_threshold:
-                self.steps_since_rewind = 0
-                self.lives_count -= 1
-                self.car.tostart(self.position_history[0])
-            else:
-                self.run = False
-                terminated = True
+            # TODO: Rewind
+            # if self.position_history and self.lives_count > 0 and self.steps >= self.rewind_threshold:
+            #     self.steps_since_rewind = 0
+            #     self.lives_count -= 1
+            #     self.car.to_start(self.position_history[0], self.position_history[1])
+            # else:
+            self.run = False
+            terminated = True
 
-
-        # check if checkpoint activated
-        checkpoint_activated = False
-        if self.car.checkinter([self.level.checkpoints[self.check_number]]):
-            self.check_number+=1
-            if self.check_number>=len(self.level.checkpoints):
-                self.check_number-=len(self.level.checkpoints)
-            checkpoint_activated = True
-            self.score += 1
-
-        reward: float = self.reward_strategies[self.current_reward_strategy](CalcRewardOpts(
-            self.steps_since_rewind,
-            min_wall_distance,
-            velocity_scalar,
-            crashed,
-            checkpoint_activated,
-        ))
+        reward = self.rewarder.calc_reward(self.state)
         self.run_reward_history.append(reward)
 
-        observation = np.array(state.flatten(), dtype=np.float32)
+        observation = np.array(self.state.flatten(), dtype=np.float32)
         info = {
             "score": self.score,
             "steps": self.steps,
             "checkpoint": self.check_number,
-            "reward_strategy": self.current_reward_strategy
         }
         if self.steps >= self.max_steps and self.max_steps > 0:
             truncated = True
             return observation, reward, False, truncated, info
         
         self.steps += 1
-        self.steps_since_rewind += 1
+        # self.steps_since_rewind += 1
         return observation, reward, terminated, False, info
-
-    def _should_switch_reward_strategy(self) -> bool:
-        if len(self.reward_strategies) <= 1:
-            return False
-
-        window = self.min_runs_without_strategy_switch
-        if len(self.avg_reward_history) < 3 * window:
-            return False
-
-        recent = self.avg_reward_history[-window:]
-        mid = self.avg_reward_history[-2 * window:-window]
-        old = self.avg_reward_history[-3 * window:-2 * window]
-
-        mean_recent = statistics.mean(recent)
-        mean_mid = statistics.mean(mid)
-        mean_old = statistics.mean(old)
-
-        delta_1 = mean_mid - mean_old
-        delta_2 = mean_recent - mean_mid
-
-        small_change = abs(delta_2) < 0.001 * abs(mean_mid)
-        negative_trend = delta_2 < -0.001 * abs(mean_mid)
-
-        try:
-            std_recent = statistics.stdev(recent)
-        except statistics.StatisticsError:
-            std_recent = 0.0
-        flat_curve = std_recent < 0.01 * abs(mean_recent)
-
-        return negative_trend or (small_change and flat_curve)
 
     def reset(
         self, *, seed: int | None = None, options: dict[str, Any] | None = None
     ) -> tuple[ObservationT, dict[str, Any]]:
         super().reset(seed=seed, options=options)
-
         self.level = self.level_manager.random()[0]
-        self._update_car_to_level()
+        self._on_level_update()
 
-        self.car.tostart(self.level.location)
         self.steps = 0
         self.score = 0
         self.lives_count = self.init_lives_count
         self.run = True
         self.check_number = 0
+
+        # Rebuild guidelines for new level
+        self._build_guidelines()
 
         self._upd_state()
 
@@ -281,13 +242,10 @@ class Env(gym.Env[ObservationT, ActionT]):
             self.avg_reward_history.append(avg)
         self.run_reward_history = []
 
-        if self._should_switch_reward_strategy():
-            self.current_reward_strategy = (self.current_reward_strategy + 1) % len(self.reward_strategies)
-
-        return np.array(self.state.flatten(), dtype=np.float32), {"strategy": self.current_reward_strategy}
+        return np.array(self.state.flatten(), dtype=np.float32), {}
 
 
 def env_factory(levels_path: Path) -> Env:
-    car_params = (5, 40, 20, [100, 200, 255], 1500, 10, (0, 0, 0), 5)
+    car_params = (5, 40, 20, [100, 200, 255], 4000, 10, (0, 0, 0), 5)
     car = car_from_parameters(car_params)
-    return Env(car, LevelManager(levels_path), reward_strategies=reward_strategies)
+    return Env(car, LevelManager(levels_path), DefaultRewarder())

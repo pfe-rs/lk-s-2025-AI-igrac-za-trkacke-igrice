@@ -1,32 +1,71 @@
 import argparse
 import pygame
 from pathlib import Path
+from pygame.font import Font
+from pygame.time import Clock
 from stable_baselines3 import PPO
-from pygame import surfarray
+from pygame import Color, SurfaceType, surfarray
 
-from agent.ppo.env import env_factory
+from agent.ppo.env import Env, env_factory
 
 # Constants
 maxsteps = 1500
 DEFAULT_MODEL_PATH = Path("models/ppo_best/best_model.zip")
 DEFAULT_LEVELS_PATH = Path("levels")
 
+def draw_guidelines(screen: SurfaceType, env: Env):
+    builder = env.guideline
+    if not builder or not builder.valid_middlelines:
+        return
+
+    arrow_color = Color(0, 255, 0)
+    line_color = Color(255, 255, 255)
+    arrow_length = 100  # pixels
+
+    for line in builder.valid_middlelines:
+        p1, p2 = line
+        pygame.draw.line(screen, line_color, p1, p2, 1)
+
+        # Draw direction arrow from midpoint
+        mid = (p1 + p2) * 0.5
+        dir_vec = (p2 - p1)
+        if dir_vec.length() > 0:
+            dir_vec = dir_vec.normalize() * arrow_length
+            arrow_tip = mid + dir_vec
+            pygame.draw.line(screen, arrow_color, mid, arrow_tip, 2)
+
+    # Optional: draw current guidance
+    car_pos = env.car.pos
+    direction = builder.direction_at(car_pos)
+    if direction.length() > 0:
+        direction = direction.normalize() * arrow_length
+        pygame.draw.line(screen, Color(255, 0, 0), car_pos, car_pos + direction, 3)
+
+
 # Rendering function
-def render(screen, clock, font, env):
+def render(screen: SurfaceType, clock: Clock, font: Font, env: Env):
     pygame.display.flip()
     clock.tick(env.FPS)
 
     env.level.draw(screen, chosen_walls=env.chosen_walls)
-    env.level.checkpoints[env.check_number].draw(screen, (100, 0, 100))
-    env.car.show(screen)
+    draw_guidelines(screen, env)
+    env.car.draw(screen)
+    if env.min_opposite_hits:
+        hit_a, hit_b = env.min_opposite_hits
+        print("a", hit_a.wall.x1)
+        print("b", hit_b.wall.x1)
+        pygame.draw.line(screen, Color(255, 0, 0),
+            (hit_a.wall.x1, hit_a.wall.y1),
+            (hit_a.wall.x2, hit_a.wall.y2), 3)
+        pygame.draw.line(screen, Color(255, 0, 0),
+            (hit_b.wall.x1, hit_b.wall.y1),
+            (hit_b.wall.x2, hit_b.wall.y2), 3)
 
     textscore = font.render(f"Score: {env.score}", True, (255, 255, 255))
     textsteps = font.render(f"Steps: {env.steps}", True, (255, 255, 255))
 
     screen.blit(textscore, (50, 50))
     screen.blit(textsteps, (50, 100))
-
-    env.last_screen_array = surfarray.array3d(screen)
 
 
 if __name__ == "__main__":
