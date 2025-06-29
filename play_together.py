@@ -2,6 +2,10 @@ from gym_env_custom import CustomEnvGAWithQuads
 import pygame
 from Functions import save_record
 import random
+from modelArh import CarGameAgentDoubleMaybe
+import torch
+from agent.utils import get_device
+import torch.nn.functional as F
 
 # === Parameters ===
 ray_number = 7
@@ -12,7 +16,7 @@ n_inputs = parametri + stanja + 2 * ray_number  # Total input features for the c
 # level_num=random.randint(0,11)
 
 
-level_num=12
+level_num=8
 
 #record number
 number=level_num
@@ -33,6 +37,12 @@ record = []
 
 
 
+device = get_device()
+model_path_lr ="models_supervised_maybe2/steer_model44.pkl"
+model_left_right = CarGameAgentDoubleMaybe(n_inputs).to(device)
+model_left_right.load_state_dict(torch.load(model_path_lr))
+
+
 # === Game Loop ===
 running = True
 while running:
@@ -50,12 +60,19 @@ while running:
     if keys[pygame.K_SPACE]:
         action[1] = True
         action[0]=False
-    if keys[pygame.K_a]:
-        action[2] = True
-    if keys[pygame.K_d]:
-        action[3] = True
+    # if keys[pygame.K_a]:
+    #     action[2] = True
+    # if keys[pygame.K_d]:
+    #     action[3] = True
 
     
+    logits_lr = model_left_right(torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device))
+    probs_lr = F.softmax(logits_lr, dim=1)
+    lr_choice = torch.argmax(probs_lr, dim=1).item()
+    if not lr_choice==2:
+        action[lr_choice+2]=True
+
+
 
     if len(record) <= 20:
         if action[0]:

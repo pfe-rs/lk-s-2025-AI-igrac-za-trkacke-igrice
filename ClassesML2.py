@@ -423,6 +423,148 @@ def new_ray_intersection(max1, max2, x, y, ori, ray_number, walls, screen=None,c
     return mins
 
 
+def vis_single_state(ray_number,state,screen=None):
+    rays = []
+    ray_length = 4000 # Safe ray length
+    angle_increment = 2 * 3.141592653589793 / (2 * ray_number - 2)
+
+    x=0
+    y=0
+
+
+    for i in range(ray_number):
+        angle = 0- 3.141592653589793 / 2 + i * angle_increment
+        x2 = x + ray_length * math.cos(angle)
+        y2 = y + ray_length * math.sin(angle)
+        rays.append((angle, Line(x, y, x2, y2)))
+
+    mins = state[-14:]
+
+    if screen:
+        points = []
+
+        # Calculate endpoints of rays
+        for i, (angle, _) in enumerate(rays):
+            distance = mins[i]
+            end_x = x + distance * math.cos(angle)
+            end_y = y + distance * math.sin(angle)
+            points.append((end_x, end_y))
+
+        # Draw filled polygon connecting all points
+        if len(points) >= 3:  # Minimum 3 points required to form a polygon
+            pygame.draw.polygon(screen, 'yellow', points, width=0)  # width=0 means filled
+        
+        car=Car(5, 40, 20, [100, 200, 255], 1500, 10, (0, 0, 0), 5)
+        car.show(screen)
+
+import cv2
+import numpy as np
+import math
+
+def vis_single_state_cv2(ray_number, state):
+    raysori = []
+    raysv=[]
+    ray_length = 4000  # Safe ray length
+    angle_increment = 2 * math.pi / (2 * ray_number - 2)
+    car=Car(5, 40, 20, [100, 200, 255], 1500, 10, (800, 800, 0), 5)
+
+    x = 800  # Center of image
+    y = 800
+
+    # Create blank white image
+    img_size = 1600
+    img = np.ones((img_size, img_size, 3), dtype=np.uint8) * 255
+
+
+
+
+
+    # Calculate rays
+    for i in range(ray_number):
+        angle = car.ori-math.pi / 2 + i * angle_increment
+        x2 = x + ray_length * math.cos(angle)
+        y2 = y + ray_length * math.sin(angle)
+        raysori.append((angle, (int(x2), int(y2))))
+    for i in range(ray_number):
+        angle = -math.pi / 2 + i * angle_increment
+        x2 = x + ray_length * math.cos(angle)
+        y2 = y + ray_length * math.sin(angle)
+        raysv.append((angle, (int(x2), int(y2))))
+
+    mins = state[-ray_number*2:]
+    # max(0, min(1, (self.intersections[i] / 2000 + 1) / 2))
+    for i in range(ray_number*2):
+        mins[i]=(2*mins[i]-1)*2000
+    # Calculate points based on distances
+    points = []
+    for i, (angle, _) in enumerate(rays):
+        distance = mins[i]
+        print(mins[i])
+        end_x = x + distance * math.cos(angle)
+        end_y = y + distance * math.sin(angle)
+        points.append((int(end_x), int(end_y)))
+
+    # Draw polygon
+    if len(points) >= 3:
+        cv2.polylines(img, [np.array(points)], isClosed=True, color=(0, 255, 255), thickness=2)
+        cv2.fillPoly(img, [np.array(points)], color=(0, 255, 255))
+
+
+
+    cos_ori = math.cos(car.ori)
+    sin_ori = math.sin(car.ori)
+    half_width = car.length / 2
+    half_length = car.width / 2
+
+    # Define corners relative to center
+    corners = [
+        (-half_width, -half_length),  # Top-left
+        (half_width, -half_length),   # Top-right
+        (half_width, half_length),    # Bottom-right
+        (-half_width, half_length)    # Bottom-left
+    ]
+
+    # Rotate and translate corners
+    rotated_corners = [
+        (
+            int(car.x + x * cos_ori - y * sin_ori),
+            int(car.y + x * sin_ori + y * cos_ori)
+        )
+        for x, y in corners
+    ]
+
+    # Draw main body of the car
+    cv2.polylines(img, [np.array(rotated_corners)], isClosed=True, color=car.color, thickness=2)
+    cv2.fillPoly(img, [np.array(rotated_corners)], color=car.color)
+
+    # Compute front-center of the car
+    front_center_x = car.x + half_length * cos_ori
+    front_center_y = car.y + half_length * sin_ori
+
+    # Draw red triangle at the front
+    front_triangle = [
+        (
+            int(front_center_x + half_width * 0.5 * sin_ori),
+            int(front_center_y - half_width * 0.5 * cos_ori)
+        ),
+        (
+            int(front_center_x - half_width * 0.5 * sin_ori),
+            int(front_center_y + half_width * 0.5 * cos_ori)
+        ),
+        (
+            int(front_center_x + half_length * 0.5 * cos_ori),
+            int(front_center_y + half_length * 0.5 * sin_ori)
+        )
+    ]
+    cv2.fillPoly(img, [np.array(front_triangle)], color=(0, 0, 255))  # Red triangle
+    # # Draw car as a circle
+    # car_radius = 10
+    # cv2.circle(img, (x, y), car_radius, (255, 0, 0), thickness=-1)
+
+    # Show image
+    cv2.imshow("State Visualization", img)
+    
+
 
 
 def one_ray_intersection(max1, max2, x, y, ori, walls, screen=None):

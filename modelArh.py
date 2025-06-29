@@ -5,6 +5,8 @@ import torch.nn.functional as F
 from ClassesML2 import *
 from agent.utils import get_device
 from custom_arch import batched_forward
+import matplotlib.pyplot as plt
+import random
 
 class CarGameAgent(nn.Module):
     def __init__(self, input_size):
@@ -365,6 +367,29 @@ class CarGameAgentDoubleMaybe(nn.Module):
         return logits
 
 
+class CarGameAgentDoubleMaybeSneaky(nn.Module):
+    def __init__(self, input_size):
+        super(CarGameAgentDoubleMaybeSneaky, self).__init__()
+
+        self.fc1 = nn.Linear(input_size, 128)
+        self.fc2 = nn.Linear(128, 256)
+        self.fc3 = nn.Linear(256, 512)
+        self.fc4 = nn.Linear(512, 512)
+        self.fc5 = nn.Linear(512, 256)
+        self.fc6 = nn.Linear(256, 128)
+        self.out = nn.Linear(128, 3)
+
+        self.lrelu = nn.LeakyReLU(negative_slope=0.01)
+
+    def forward(self, x):
+        x = self.lrelu(self.fc1(x))
+        x = self.lrelu(self.fc2(x))
+        x = self.lrelu(self.fc3(x))
+        x = self.lrelu(self.fc4(x))
+        x = self.lrelu(self.fc5(x))
+        x = self.lrelu(self.fc6(x))
+        x = self.out(x)
+        return x
 
 
 class CombinedCarGameAgentMaybe(nn.Module):
@@ -379,15 +404,16 @@ class CombinedCarGameAgentMaybe(nn.Module):
         logits_lr = self.model_lr(x)  # Shape: [batch_size, 3]
 
         probs_gb = F.softmax(logits_gb, dim=1)  # Convert to probabilities
+        # probs_gb = torch.tensor([[0, 1, 0]], dtype=torch.float32).to(x.device)
         probs_lr = F.softmax(logits_lr, dim=1)
 
-        if force_it:
-            probs_gb = torch.tensor([[1, 0, 0]], dtype=torch.float32).to(x.device)
+        # if force_it:
+        #     probs_gb = torch.tensor([[1, 0, 0]], dtype=torch.float32).to(x.device)
 
 
         return probs_gb, probs_lr  # Return both probability distributions
 
-    def run_in_environment(self, env, visualize=True, maxsteps=500, device="cuda",startvx=0,startstep=0):
+    def run_in_environment(self, env, visualize=True, maxsteps=500, device="cuda",startvx=0,startstep=0,plotenzi_loc=None):
         """
         Runs the model in the environment once until done.
 
@@ -399,6 +425,8 @@ class CombinedCarGameAgentMaybe(nn.Module):
         """
         self.to(device)
 
+        color_copy=env.car.color
+
         if visualize:
             env.start_pygame()
 
@@ -406,23 +434,25 @@ class CombinedCarGameAgentMaybe(nn.Module):
         total_reward = 0
         running = True
 
-        
+        action_numbers=[[0,0,0],[0,0,0]]
 
+        actions_save=[]
 
         while running:
             if visualize:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         running = False
+                env.car.color=color_copy
 
             state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
 
 
-            if env.car.vx<startvx and env.steps<startstep:
-                force_it=True
-            else:
-                force_it=False
-
+            # if env.car.vx<startvx and env.steps<startstep:
+            #     force_it=True
+            # else:
+            #     force_it=False
+            force_it=False
 
             with torch.no_grad():
                 probs_gb, probs_lr = self(state_tensor,force_it=force_it)
@@ -432,21 +462,39 @@ class CombinedCarGameAgentMaybe(nn.Module):
             gb_choice = torch.argmax(probs_gb, dim=1).item()  # 0=gas, 1=brake, 2=neither
             lr_choice = torch.argmax(probs_lr, dim=1).item()  # 0=left, 1=right, 2=neither
 
+            actions_save.append(probs_gb[0])
 
             chosen_actions = [False, False, False, False]  # [gas, brake, left, right]
 
+
+            action_numbers[0][gb_choice]+=1
+            action_numbers[1][lr_choice]+=1
+
             if gb_choice == 0:
                 chosen_actions[0] = True
+                
             elif gb_choice == 1:
                 chosen_actions[1] = True
+                if visualize:
+                    env.car.color=([120,120,120])
 
             if lr_choice == 0:
                 chosen_actions[2] = True
             elif lr_choice == 1:
                 chosen_actions[3] = True
 
+
+
+            
+
+            
+
+
+
             os.system('clear')
 
+            print(probs_gb*100)
+            print(probs_lr*100)
             print(gb_choice)
             print(lr_choice)
             print(f"Gas/Brake probs: {probs_gb.cpu().numpy()}")
@@ -464,4 +512,27 @@ class CombinedCarGameAgentMaybe(nn.Module):
 
         self.to("cpu")
         env.close()
+        print(action_numbers)
+        if visualize and not plotenzi_loc ==None:
+            probs_gas = [p[0] for p in actions_save]
+            probs_brake = [p[1] for p in actions_save]
+            probs_neither = [p[2] for p in actions_save]
+
+            # Plotting
+            plt.figure(figsize=(12, 6))
+            plt.plot(probs_gas, label='Gas Probability', color='green')
+            plt.plot(probs_brake, label='Brake Probability', color='red')
+            plt.plot(probs_neither, label='Neither Probability', color='blue')
+
+            plt.xlabel('Timestep')
+            plt.ylabel('Probability')
+            plt.title('Probability Evolution Over Time')
+            plt.legend()
+            plt.grid()
+
+            plt.savefig(plotenzi_loc+".png")
+
+
+
+        
         return total_reward

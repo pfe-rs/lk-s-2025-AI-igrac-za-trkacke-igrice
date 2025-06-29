@@ -28,7 +28,7 @@ def snap_to_point(pos, points, threshold):
 os.makedirs(file_root, exist_ok=True)
 
 # === Glavni program ===
-for i in range(0, 10):
+for i in range(99, 100):
     
     pygame.init()
     screen = pygame.display.set_mode((width, height))

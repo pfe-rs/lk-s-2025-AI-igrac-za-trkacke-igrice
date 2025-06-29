@@ -8,11 +8,11 @@ parametri = 6
 stanja = 4
 
 n_inputs = parametri + stanja + 2 * ray_number
-level_file = "clean-codes/levels/8.pkl"
+level_file = "clean-codes/levels/0.pkl"
 car_params = (5, 40, 20, [100, 200, 255], 1500, 10, (0, 0, 0), 5)
 
 # === Load Recording ===
-record_file = "clean-codes/recordings2/4.pkl"  # Change to your recording file
+record_file = "clean-codes/recordings2/15.pkl"  # Change to your recording file
 
 with open(record_file, "rb") as f:
     record = pickle.load(f)
@@ -36,10 +36,11 @@ while running and step_index < len(record):
             break
 
     # Get recorded action
-    _, action = record[step_index]
+    state_real, action = record[step_index]
 
     # Step environment with recorded action
     state, reward, done, _, _ = env.step(action)
+
     env.render()
     step_index += 1
 

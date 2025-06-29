@@ -4,14 +4,17 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 from modelArh import CarGameAgentDoubleMaybe,CombinedCarGameAgentMaybe,CarGameAgentDoubleMaybeSneaky  # Your custom model
-from balance_it import load_and_balance_for_double
+from balance_it import load_and_balance_for_double,load_and_balance_for_double_maybe
 from GATrainer import get_last_gen
 from Functions import load_all_levels
 from GATrainer import env_fn
 import numpy as np
+import time
+
+
 
 # === Parameters ===
-recordings_folder = "clean-codes/recordings_lr/"
+recordings_folder = "clean-codes/recordings_gb/"
 batch_size = 64
 epochs = 1000
 learning_rate = 0.001
@@ -40,7 +43,7 @@ n_inputs = parametri + stanja + 2 * ray_number
 # === Load and unpack data ===
 import random
 
-gas_brake, left_right = load_and_balance_for_double(recordings_folder)
+gas_brake, left_right = load_and_balance_for_double_maybe(recordings_folder)
 
 gb_states = [s for s, _ in gas_brake]
 lr_states = [s for s, _ in left_right]
@@ -78,7 +81,7 @@ for _, action in left_right:
 
 print(f"Initial GB Counts: {gb_counts}")
 print(f"Initial LR Counts: {lr_counts}")
-
+# print(gb_actions[:10])
 # --- Boost "Neither" Class ---
 
 def boost_class(states, actions, target_class, desired_total):
@@ -113,12 +116,13 @@ combined_gb = list(zip(gb_states, gb_actions))
 random.shuffle(combined_gb)
 gb_states, gb_actions = zip(*combined_gb)
 
+
 combined_lr = list(zip(lr_states, lr_actions))
 random.shuffle(combined_lr)
 lr_states, lr_actions = zip(*combined_lr)
 
-print(f"After Balancing - GB: {gb_actions.count(0)} Gas, {gb_actions.count(1)} Brake, {gb_actions.count(2)} Neither")
-print(f"After Balancing - LR: {lr_actions.count(0)} Left, {lr_actions.count(1)} Right, {lr_actions.count(2)} Neither")
+# print(f"After Balancing - GB: {gb_actions.count(0)} Gas, {gb_actions.count(1)} Brake, {gb_actions.count(2)} Neither")
+# print(f"After Balancing - LR: {lr_actions.count(0)} Left, {lr_actions.count(1)} Right, {lr_actions.count(2)} Neither")
 
 
 print(f"Loaded {len(gb_states)} gas/brake samples after balancing.")
@@ -132,6 +136,10 @@ for action in gb_actions:
 
 print(bg_number)
 
+gb_actions=list(gb_actions)
+
+# print(gb_actions)
+
 
 lr_number=[0,0,0]   
 
@@ -139,6 +147,8 @@ for action in lr_actions:
     lr_number[action]+=1
 
 print(lr_number)
+
+lr_actions=list(lr_actions)
 
 
 
@@ -158,9 +168,13 @@ gb_model = CarGameAgentDoubleMaybeSneaky(n_inputs).to(device)
 lr_model = CarGameAgentDoubleMaybeSneaky(n_inputs).to(device)
 
 # models_supervised/gas_brake_model1.pkl models_supervised/steer_model1.pkl
-# gb_model.load_state_dict(torch.load("models_supervised_maybe2/gas_brake_model"+str(gen)+".pkl", map_location=device))
-# lr_model.load_state_dict(torch.load("models_supervised_maybe2/steer_model"+str(gen)+".pkl", map_location=device))
+# gb_model.load_state_dict(torch.load("models_supervised_maybe5/gas_brake_model"+str(gen)+".pkl", map_location=device))
+# lr_model.load_state_dict(torch.load("models_supervised_maybe5/steer_model"+str(gen)+".pkl", map_location=device))
 
+# Class order: [Gas (0), Brake (1), Neither (2)]
+# class_weights = torch.tensor([0.5, 4.2, 1.0], dtype=torch.float32).to(device)
+
+# gb_criterion = nn.CrossEntropyLoss(weight=class_weights)
 gb_criterion = nn.CrossEntropyLoss()
 lr_criterion = nn.CrossEntropyLoss()
 
@@ -173,30 +187,57 @@ levels=load_all_levels("clean-codes/levels")
 gb_epoch_loss=100
 lr_epoch_loss=100
 
-# === Training loop ===
 for epoch in range(epochs):
+    start_time = time.time()
 
-    last_gb=gb_epoch_loss
-    last_lr=lr_epoch_loss
     gb_epoch_loss = 0
     lr_epoch_loss = 0
 
     gb_model.train()
     lr_model.train()
 
-    # for batch_states, batch_actions in gb_dataloader:
-    #     batch_states = batch_states.to(device)
-    #     batch_actions = batch_actions.to(device)
+    # === Select 1% random samples for Gas/Brake training ===
+    total_gb_samples = len(gb_states)
+    subset_size_gb = max(1, int(total_gb_samples * 1))
 
-    #     gb_optimizer.zero_grad()
-    #     output = gb_model(batch_states)
-    #     loss = gb_criterion(output, batch_actions)
-    #     loss.backward()
-    #     gb_optimizer.step()
-    #     gb_epoch_loss += loss.item()
+    indices_gb = random.sample(range(total_gb_samples), subset_size_gb)
+
+    subset_gb_states = [gb_states[i] for i in indices_gb]
+    subset_gb_actions = [gb_actions[i] for i in indices_gb]
+
+    subset_gb_dataset = TensorDataset(torch.tensor(subset_gb_states, dtype=torch.float32),
+                                      torch.tensor(subset_gb_actions, dtype=torch.long))
+    subset_gb_loader = DataLoader(subset_gb_dataset, batch_size=batch_size, shuffle=True)
+
+    # === Train Gas/Brake model on 1% dataset ===
+    for batch_states, batch_actions in subset_gb_loader:
+        batch_states = batch_states.to(device)
+        batch_actions = batch_actions.to(device)
+
+        gb_optimizer.zero_grad()
+        output = gb_model(batch_states)
+        loss = gb_criterion(output, batch_actions)
+        loss.backward()
+        gb_optimizer.step()
+        gb_epoch_loss += loss.item()
+
+    gb_avg_loss = gb_epoch_loss / len(subset_gb_loader)
 
 
-    for batch_states, batch_actions in lr_dataloader:
+    # === Left/Right training loop commented out ===
+    total_lr_samples = len(lr_states)
+    subset_size_lr = max(1, int(total_lr_samples * 0.2))
+
+    indices_lr = random.sample(range(total_lr_samples), subset_size_lr)
+
+    subset_lr_states = [lr_states[i] for i in indices_lr]
+    subset_lr_actions = [lr_actions[i] for i in indices_lr]
+
+    subset_lr_dataset = TensorDataset(torch.tensor(subset_lr_states, dtype=torch.float32),
+                                      torch.tensor(subset_lr_actions, dtype=torch.long))
+    subset_lr_loader = DataLoader(subset_lr_dataset, batch_size=batch_size, shuffle=True)
+
+    for batch_states, batch_actions in subset_lr_loader:
         batch_states = batch_states.to(device)
         batch_actions = batch_actions.to(device)
 
@@ -207,30 +248,31 @@ for epoch in range(epochs):
         lr_optimizer.step()
         lr_epoch_loss += loss.item()
 
-    gb_avg_loss = gb_epoch_loss / len(gb_dataloader)
-    lr_avg_loss = lr_epoch_loss / len(lr_dataloader)
-    print(f"Epoch {epoch+1}/{epochs}, Gas/Brake Loss: {gb_avg_loss:.4f}, Left/Right Loss: {lr_avg_loss:.4f}")
+    lr_avg_loss = lr_epoch_loss / len(subset_lr_loader)
 
-    # if epoch%30==0:
-    # torch.save(gb_model.state_dict(), f"models_supervised_maybe2/gas_brake_model{gen+epoch}.pkl")
-    torch.save(lr_model.state_dict(), f"models_supervised_maybe7/steer_model{gen+epoch}.pkl")
+    # lr_avg_loss = 0  # Placeholder if LR is commented out
 
+    print(f"Epoch {epoch+1}/{epochs}, Gas/Brake Loss (1% dataset): {gb_avg_loss:.4f}, Left/Right Loss: {lr_avg_loss:.4f}")
 
-    # meow_scores=[]
+    torch.save(gb_model.state_dict(), f"models_supervised_maybe6/gas_brake_model{gen+epoch+1}.pkl")
+    torch.save(lr_model.state_dict(), f"models_supervised_maybe6/steer_model{gen+epoch+1}.pkl")
+
+    # meow_scores = []
     # model = CombinedCarGameAgentMaybe(gb_model, lr_model)
     # model.eval()
 
     # for level in levels:
-    #     meow_fit = model.run_in_environment(
-    #     env_fn(), visualize=False, maxsteps=10000, device=device
-    #     )
+    #     meow_fit = model.run_in_environment(env_fn(), visualize=False, maxsteps=1000, device=device)
     #     meow_scores.append(meow_fit)
 
     # mean_value = np.mean(meow_scores)
 
-    with open("output3.txt", "a") as f:
-        # print(mean_value, file=f)
+    with open("output1.txt", "a") as f:
+        # print(str(epoch)+": "+str(mean_value), file=f)
         print(f"Epoch {epoch+1+gen}/{epochs}, Gas/Brake Loss (1% dataset): {gb_avg_loss:.4f}, Left/Right Loss: {lr_avg_loss:.4f}", file = f)
+
+
+    print(f"Time taken: {time.time() - start_time:.6f} seconds")
 
 
 

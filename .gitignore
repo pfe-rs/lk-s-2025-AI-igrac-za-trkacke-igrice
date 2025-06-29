@@ -1,4 +1,11 @@
 /models
+<<<<<<< HEAD
 */**/__pycache__
 /recordings*
 /logs
+=======
+**/__pycache__
+/recordings
+/recordings1
+/recordings2
+>>>>>>> de094a3 (imitation learning changes)

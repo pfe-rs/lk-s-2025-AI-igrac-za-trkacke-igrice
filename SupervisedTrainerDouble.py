@@ -93,7 +93,7 @@ for epoch in range(epochs):
     gb_avg_loss = gb_epoch_loss / len(gb_dataloader)
     lr_avg_loss = lr_epoch_loss / len(lr_dataloader)
     print(f"Epoch {epoch+1}/{epochs}, Gas/Brake Loss: {gb_avg_loss:.4f}, Left/Right Loss: {lr_avg_loss:.4f}")
-
+    
 # === Save models ===
 os.makedirs("models_supervised/", exist_ok=True)
 

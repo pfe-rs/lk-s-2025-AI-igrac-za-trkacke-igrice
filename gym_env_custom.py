@@ -10,6 +10,7 @@ import pygame.surfarray as surfarray
 import copy
 from agent.const import *
 from quad_func import *
+from collections import deque
 
 class CustomEnvGA(gym.Env):
     def __init__(self, n_i, level_loc, paramethers,ray_number=7):
@@ -247,6 +248,8 @@ class CustomEnvGAWithQuads(gym.Env):
 
         self.from_state=False
 
+        self.replay=[]
+
 
 
 
@@ -269,7 +272,9 @@ class CustomEnvGAWithQuads(gym.Env):
         
 
         # Calculate initial state (e.g., from rays)
-        self.get_state()
+        # self.get_state()
+        self.init_replay()
+        self.update_replay()
 
         
         #BE CAREFUL
@@ -278,6 +283,18 @@ class CustomEnvGAWithQuads(gym.Env):
 
 
         return self.state
+
+    def init_replay(self):
+        self.get_state()
+        self.replay = deque([self.state.copy() for _ in range(121)])
+
+    def update_replay(self):
+        self.replay.popleft()
+        self.get_state()
+        self.replay.append(self.state.copy())
+
+
+
     def get_state(self):
         self.state=[]
 
@@ -301,7 +318,7 @@ class CustomEnvGAWithQuads(gym.Env):
         # print(self.car.ni)
 
         self.state.append(max(0, min(1, (self.car.vx / max_car_vx + 1) / 2)))
-        self.state.append(max(0, min(1, (self.car.vx / max_car_vy + 1) / 2)))
+        self.state.append(max(0, min(1, (self.car.vy / max_car_vy + 1) / 2)))
 
 
 
@@ -373,7 +390,10 @@ class CustomEnvGAWithQuads(gym.Env):
 
 
 
-        self.get_state()
+        self.update_replay()
+        for frame in self.replay:
+            print(frame[8:10])
+        # print(self.replay,end="\n")
         # self.state = np.array(
         #     new_ray_intersection(self.car.length, self.car.width, self.car.x, self.car.y, self.car.ori,
         #                          self.car.ni, self.level.walls),

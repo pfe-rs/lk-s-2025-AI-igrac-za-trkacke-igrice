@@ -1,6 +1,7 @@
 from pathlib import Path
 import pickle
 from ClassesML2 import *
+import os
 
 
 def level_loader(level_loc: Path | str):
@@ -34,3 +35,27 @@ def load_record(filename):
     """Load array from pickle file."""
     with open(filename, "rb") as f:
         return pickle.load(f)
+
+
+
+def load_all_levels(levels_folder):
+    """
+    Loads all .pkl level files from a given folder.
+
+    Args:
+        levels_folder (str): Path to the folder containing levels.
+
+    Returns:
+        list: List of loaded level objects.
+    """
+    levels = []
+
+    for filename in os.listdir(levels_folder):
+        if filename.endswith(".pkl"):
+            path = os.path.join(levels_folder, filename)
+            with open(path, "rb") as f:
+                level = pickle.load(f)
+                levels.append(level)
+
+    print(f"Loaded {len(levels)} levels from {levels_folder}")
+    return levels
