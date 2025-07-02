@@ -18,7 +18,7 @@ def render(screen: SurfaceType, clock: Clock, font: Font, env: Env):
     pygame.display.flip()
     clock.tick(env.FPS)
 
-    env.level.draw(screen, chosen_walls=env.chosen_walls)
+    env.level.draw(screen)
     env.car.draw(screen)
     if env.min_opposite_hits:
         hit_a, hit_b = env.min_opposite_hits

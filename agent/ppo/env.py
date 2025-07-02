@@ -137,7 +137,7 @@ class Env(gym.Env[ObservationT, ActionT]):
             for ray in self.rays
         ]
         
-        ray_hits = calculate_ray_hits(rays, self.chosen_walls)
+        ray_hits = calculate_ray_hits(rays, self.level.walls)
         return ray_hits
     
     def _upd_intersections(self, ray_hits: list[RayHit]):
@@ -181,7 +181,7 @@ class Env(gym.Env[ObservationT, ActionT]):
                 midline_candidate_0, midline_candidate_1 = cut_segs(midline, intersection)
                 processed_midline = select_similar_angle_seg(prev_midline, midline_candidate_0, midline_candidate_1)
             else:
-                parallel_midline = orient_same_if_parallel(prev_midline, midline, 2 * math.pi)
+                parallel_midline = orient_same_if_parallel(prev_midline, midline, math.pi/2)
                 if parallel_midline:
                     processed_midline = parallel_midline
                 else: 
@@ -203,8 +203,6 @@ class Env(gym.Env[ObservationT, ActionT]):
     
     def _upd_state(self) -> None:
         self._upd_car_state()
-        decided_quad = self.car.decide_quad(self.level)
-        self.chosen_walls = get_chosen_ones(self.level.walls, self.level.boolean_walls, decided_quad)
         ray_hits = self._calc_ray_hits()
         self._upd_intersections(ray_hits)
 
@@ -250,7 +248,7 @@ class Env(gym.Env[ObservationT, ActionT]):
         self._upd_state()
 
         terminated: bool = False
-        if self.car.intersects_line(self.chosen_walls):
+        if self.car.intersects_line(self.level.walls):
             crashed = True
             self.state.crashed = 1
             # TODO: Rewind

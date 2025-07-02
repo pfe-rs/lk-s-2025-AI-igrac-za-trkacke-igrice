@@ -71,7 +71,7 @@ class PPOTrainer(BaseTrainer):
                 policy_kwargs=policy_kwargs,
                 ent_coef=0.01, # Entropy coefficient for exploration. Default 0
                 vf_coef=0.7, # increased since value function wasn't learning
-                learning_rate=1e-3,
+                learning_rate=3e-4,
                 n_steps=2048,
                 batch_size=64,
                 n_epochs=self.args.epochs,

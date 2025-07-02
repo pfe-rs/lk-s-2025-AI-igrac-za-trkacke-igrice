@@ -16,10 +16,10 @@ class Rewarder(ABC):
 @dataclass
 class RewarderConfig:
     min_rewarded_velocity = 0.005
-    max_rewarded_velocity = 0.3
+    max_rewarded_velocity = 0.25
     velocity_reward_scale: float = 1
     angle_reward_scale: float = 1
-    crash_penalty: float = -12.5
+    crash_penalty: float = -7
 
 class DefaultRewarder(Rewarder):
     def __init__(self, config: RewarderConfig = RewarderConfig()):
@@ -51,14 +51,16 @@ class DefaultRewarder(Rewarder):
                 state.car_velocity_y * state.direction_sin
             )
             
-            
             direction_reward = self.config.angle_reward_scale * (math.pi - abs(angle_diff))
             
             reward += direction_reward + forward_velocity * 2
         
+        if min(state.intersections) < 0.01:
+            reward += -0.5
+            
         # --- Crash Penalty ---
         if state.crashed == 1:
             reward += self.config.crash_penalty
         
         # --- Stability: Clip reward to reasonable bounds ---
-        return reward - 2.5
+        return reward - 2

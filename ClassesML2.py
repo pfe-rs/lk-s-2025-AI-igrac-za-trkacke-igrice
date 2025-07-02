@@ -87,15 +87,11 @@ class Level:
         self.walls.append(Line(x1, y1, x2, y2))
     def reset_quad_tree(self):
         self.boolean_walls=quad_tree_from_list(self.walls,self)
-    def draw(self, surface, checkers_truth=True,chosen_walls=None):
+    def draw(self, surface, checkers_truth=True):
         surface.fill(self.BACKGROUND_COLOR)
         # Draw all walls of the track
-        if chosen_walls is None:
-            for wall in self.walls:
-                wall.draw(surface,([0,255,255]))
-        else:
-            for wall in chosen_walls:
-                wall.draw(surface,([0,255,255]))
+        for wall in self.walls:
+            wall.draw(surface,([0,255,255]))
 
         # if checkers_truth:
         #     for checkpoint in self.checkpoints:
@@ -179,14 +175,6 @@ class Car:
             elif x >= width / 2 and y >= height / 2:
                 quads[3]=True
         return quads
-
-    def max_velocity(self):
-        v_max: float = self.pull / self.k
-        return {
-            "v": v_max,
-            "x": v_max * math.cos(self.ori),
-            "y": v_max * math.sin(self.ori),
-        }
 
     def show(self, screen):
         cos_ori = math.cos(self.ori)
