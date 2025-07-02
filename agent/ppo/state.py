@@ -1,4 +1,6 @@
 from dataclasses import dataclass, field
+import dataclasses
+import json
 
 RAYS_COUNT = 16
 CAR_STATIC_PARAMS_COUNT = 4
@@ -31,6 +33,9 @@ class EnvState:
     # distances to walls # [0, 1]
     intersections: list[float] = field(default_factory=list)
 
+    def json(self) -> str:
+        return json.dumps(dataclasses.asdict(self))
+
     def flatten(self) -> list[float]: # used as input for nn
         assert len(self.intersections) == RAYS_COUNT
         return [
@@ -51,3 +56,4 @@ class EnvState:
             self.crashed,
             *self.intersections,
         ]
+

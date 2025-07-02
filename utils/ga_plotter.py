@@ -44,7 +44,7 @@ if __name__ == "__main__":
     y = [m.fitness for m in models]
 
     plt.figure(figsize=(10, 6))
-    plt.scatter(x, y, s=25, c='black', marker='o')  # guaranteed: points only
+    plt.scatter(x, y, s=25, c='black', marker='o')
     plt.xlabel("Generation")
     plt.ylabel("Fitness")
     plt.title("Fitness per Generation")

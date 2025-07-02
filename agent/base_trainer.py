@@ -11,7 +11,7 @@ class BaseTrainerArgs:
     checkpoints_path: Path
     best_path: Path
     total_timesteps: int
-    episodes: int  # Added here
+    epochs: int  # Added here
 
 
 class BaseTrainer:
@@ -21,7 +21,7 @@ class BaseTrainer:
     DEFAULT_CHECKPOINTS_PATH = Path("./models/checkpoints")
     DEFAULT_BEST_PATH = Path("./models/best")
     DEFAULT_TOTAL_TIMESTEPS = 100000
-    DEFAULT_EPISODES = -1
+    DEFAULT_EPOCHS = 100
 
     def __init__(self):
         self.args_parser = argparse.ArgumentParser(description="Train a model for a racing game.")
@@ -51,8 +51,8 @@ class BaseTrainer:
             help=f"Total number of timesteps to train (default: {self.DEFAULT_TOTAL_TIMESTEPS})"
         )
         self.args_parser.add_argument(
-            "--episodes", type=int, default=self.DEFAULT_EPISODES,
-            help=f"Optional limit for number of episodes (default: {self.DEFAULT_EPISODES})"
+            "--epochs", type=int, default=self.DEFAULT_EPOCHS,
+            help=f"Optional limit for number of epochs (default: {self.DEFAULT_EPOCHS})"
         )
 
     def _parse_args(self) -> BaseTrainerArgs:
@@ -64,5 +64,5 @@ class BaseTrainer:
             checkpoints_path=args.checkpoints_path,
             best_path=args.best_path,
             total_timesteps=args.total_timesteps,
-            episodes=args.episodes
+            epochs=args.epochs
         )

@@ -1,59 +1,64 @@
 from abc import abstractmethod, ABC
+from dataclasses import dataclass
 import math
 
 from agent.ppo.state import EnvState
 
-
 class Rewarder(ABC):
     @abstractmethod
-    def calc_reward(self, state: EnvState) -> float: pass
+    def reset(self):
+        pass
 
+    @abstractmethod
+    def calc_reward(self, state: EnvState) -> float:
+        pass
+
+@dataclass
+class RewarderConfig:
+    min_rewarded_velocity = 0.005
+    max_rewarded_velocity = 0.3
+    velocity_reward_scale: float = 1
+    angle_reward_scale: float = 1
+    crash_penalty: float = -12.5
 
 class DefaultRewarder(Rewarder):
-    def __init__(self):
-        self.stagnant_steps = 0
-
+    def __init__(self, config: RewarderConfig = RewarderConfig()):
+        self.config = config or RewarderConfig()
+        self.prev_forward_progress = 1.0
+        
+    def reset(self):
+        self.prev_forward_progress = 1.0
+        
     def calc_reward(self, state: EnvState) -> float:
-        vel_x, vel_y = state.car_velocity_x, state.car_velocity_y
-        speed = math.sqrt(vel_x ** 2 + vel_y ** 2)
+        reward = 1.0
+        speed = math.sqrt(state.car_velocity_x**2 + state.car_velocity_y**2)
+        
+        if speed > self.config.min_rewarded_velocity:
+            # Calculate velocity direction vector
+            vel_dir_x = state.car_velocity_x / speed
+            vel_dir_y = state.car_velocity_y / speed
+            
+            # Calculate angle difference between velocity and track direction
+            dot_product = (
+                vel_dir_x * state.direction_cos +
+                vel_dir_y * state.direction_sin
+            )
+            dot_product = max(min(dot_product, 1.0), -1.0)
+            angle_diff = math.acos(dot_product)
 
-        dir_x, dir_y = state.direction_cos, state.direction_sin
-        alignment = vel_x * dir_x + vel_y * dir_y
-        projected_progress = max(0.0, alignment)
-
-        min_dist = min(state.intersections)
-        reward = 0.0
-
-        # 1. Progress reward
-        reward += projected_progress * 1.5
-
-        # 2. Crash penalty
-        if state.crashed >= 1.0:
-            reward -= 2.0 * (1.0 + speed)
-            return reward  # ends episode
-
-        # 3. Wall penalty
-        if min_dist < 0.2:
-            reward -= 0.6 * (1.0 - min_dist)
-
-        # 4. Directional alignment
-        reward += alignment * 0.15
-
-        # 5. Speed bonus
-        if alignment > 0.85:
-            zone_factor = min(min_dist / 0.6, 1.0)
-            reward += speed * 0.3 * zone_factor
-
-        # 6. Stagnation penalty
-        if speed < 0.1:
-            self.stagnant_steps += 1
-            reward += -0.1 - 0.05 * self.stagnant_steps
-            if self.stagnant_steps > 100:
-                reward += -5.0  # force exploration
-        else:
-            self.stagnant_steps = 0
-
-        # 7. Time penalty
-        reward -= 0.005
-
-        return reward
+            forward_velocity = (
+                state.car_velocity_x * state.direction_cos +
+                state.car_velocity_y * state.direction_sin
+            )
+            
+            
+            direction_reward = self.config.angle_reward_scale * (math.pi - abs(angle_diff))
+            
+            reward += direction_reward + forward_velocity * 2
+        
+        # --- Crash Penalty ---
+        if state.crashed == 1:
+            reward += self.config.crash_penalty
+        
+        # --- Stability: Clip reward to reasonable bounds ---
+        return reward - 2.5
