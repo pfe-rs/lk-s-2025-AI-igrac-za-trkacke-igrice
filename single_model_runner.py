@@ -1,6 +1,6 @@
 import sys
-from agent.device import get_device
-from modelArh import CarGameAgent
+from agent.utils import get_device
+from modelArh import CarGameAgentDoubleMaybeFrontMid
 from gym_env_custom import CustomEnvGAWithQuads
 import time
 import torch
@@ -16,7 +16,12 @@ ray_number = 7
 parametri = 6
 stanja = 4
 n_inputs = parametri + stanja + 2 * ray_number
+n_inputs=584
 maxsteps=1500
+
+
+model_path="models_supervised_absolute/model2001.pkl"
+level_file="clean-codes/levels/11.pkl"
 
 
 if __name__ == "__main__":
@@ -24,15 +29,14 @@ if __name__ == "__main__":
     if len(sys.argv) < 3:
         print("should provide model and level paths")
 
-    model_path = sys.argv[1]
-    level_file = sys.argv[2]
 
-    model = CarGameAgent(n_inputs)
+    model = CarGameAgentDoubleMaybeFrontMid(n_inputs)
     model.load_state_dict(torch.load(model_path))
 
     device = get_device()
 
-    reward=model.run_in_environment(env_fn(), visualize=True, threshold=0.5,maxsteps=10000,device=device)
+    reward=model.run_in_environment(env_fn(), visualize=True,maxsteps=10000,device=device,plotenzi_loc="plotenzi2")
+    # (self, env, visualize=True, maxsteps=500, device="cuda",startvx=0,startstep=0,plotenzi_loc=None)
     # best_model.run_in_environment(env_fn(), visualize=True, threshold=0.5,maxsteps=200)
 
 

@@ -12,7 +12,8 @@ n_inputs = parametri + stanja + 2 * ray_number  # Total input features for the c
 # level_num=random.randint(0,11)
 
 
-level_num=12
+level_num=10
+
 
 #record number
 number=level_num
@@ -55,13 +56,13 @@ while running:
     if keys[pygame.K_d]:
         action[3] = True
 
-    
+    input_replay=env.get_replay()
 
     if len(record) <= 20:
         if action[0]:
-            record.append([env.state, action])
+            record.append([input_replay, action])
     else:
-        record.append([env.state, action])
+        record.append([input_replay,action])
     
 
     # Step environment4
@@ -71,7 +72,7 @@ while running:
     # Check end conditions
     if done or not running:
         print("Episode finished! Saving recording...")
-        save_record(record, f"clean-codes/recordings_gb/{number}.pkl")
+        save_record(record, f"clean-codes/recordings_replay/{number}.pkl")
         break
 
 # Cleanup

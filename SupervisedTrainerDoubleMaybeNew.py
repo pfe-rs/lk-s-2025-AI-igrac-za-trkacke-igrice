@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
-from modelArh import CarGameAgentDoubleMaybe,CombinedCarGameAgentMaybe,CarGameAgentDoubleMaybeSneaky  # Your custom model
+from modelArh import *
 from balance_it import load_and_balance_for_double,load_and_balance_for_double_maybe
 from GATrainer import get_last_gen
 from Functions import load_all_levels
@@ -11,16 +11,16 @@ from GATrainer import env_fn
 import numpy as np
 import time
 
-
-
 # === Parameters ===
-recordings_folder = "clean-codes/recordings_gb/"
+
+
+
+
+
 batch_size = 64
-epochs = 1000
 learning_rate = 0.001
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-gen = 0
 
 ray_number = 7
 parametri = 6
@@ -39,6 +39,16 @@ n_inputs = parametri + stanja + 2 * ray_number
 # print(f"Loaded {len(gb_states)} gas/brake samples after balancing.")
 # print(f"Loaded {len(lr_states)} left/right samples after balancing.")
 
+epochs = 2000
+recordings_folder = "clean-codes/recordings_replay/"
+gen = 0
+folder_path = "models_supervised_maybe_big/"
+output_file="output5.txt"
+n_inputs=584
+
+gb_model = CarGameAgentDoubleMaybeSneakyBig(n_inputs).to(device)
+lr_model = CarGameAgentDoubleMaybeSneakyBig(n_inputs).to(device)
+
 
 # === Load and unpack data ===
 import random
@@ -53,7 +63,7 @@ lr_actions = []
 
 # Counters for balancing
 gb_counts = [0, 0, 0]  # Gas, Brake, Neither
-lr_counts = [0, 0, 0]  # Left, Right, Neither
+lr_counts = [0, 0, 0]  # Left, Right, Neither,
 
 # Process Gas/Brake actions
 for _, action in gas_brake:
@@ -164,12 +174,10 @@ lr_dataset = TensorDataset(lr_states_tensor, lr_actions_tensor)
 lr_dataloader = DataLoader(lr_dataset, batch_size=batch_size, shuffle=True)
 
 # === Initialize models and optimizers ===
-gb_model = CarGameAgentDoubleMaybeSneaky(n_inputs).to(device)
-lr_model = CarGameAgentDoubleMaybeSneaky(n_inputs).to(device)
 
 # models_supervised/gas_brake_model1.pkl models_supervised/steer_model1.pkl
-# gb_model.load_state_dict(torch.load("models_supervised_maybe5/gas_brake_model"+str(gen)+".pkl", map_location=device))
-# lr_model.load_state_dict(torch.load("models_supervised_maybe5/steer_model"+str(gen)+".pkl", map_location=device))
+# gb_model.load_state_dict(torch.load("models_supervised_maybe_mid/gas_brake_model"+str(gen)+".pkl", map_location=device))
+# lr_model.load_state_dict(torch.load("models_supervised_maybe_mid/steer_model"+str(gen)+".pkl", map_location=device))
 
 # Class order: [Gas (0), Brake (1), Neither (2)]
 # class_weights = torch.tensor([0.5, 4.2, 1.0], dtype=torch.float32).to(device)
@@ -254,8 +262,14 @@ for epoch in range(epochs):
 
     print(f"Epoch {epoch+1}/{epochs}, Gas/Brake Loss (1% dataset): {gb_avg_loss:.4f}, Left/Right Loss: {lr_avg_loss:.4f}")
 
-    torch.save(gb_model.state_dict(), f"models_supervised_maybe6/gas_brake_model{gen+epoch+1}.pkl")
-    torch.save(lr_model.state_dict(), f"models_supervised_maybe6/steer_model{gen+epoch+1}.pkl")
+
+
+
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+
+    torch.save(gb_model.state_dict(), f"{folder_path}gas_brake_model{gen+epoch+1}.pkl")
+    torch.save(lr_model.state_dict(), f"{folder_path}steer_model{gen+epoch+1}.pkl")
 
     # meow_scores = []
     # model = CombinedCarGameAgentMaybe(gb_model, lr_model)
@@ -266,8 +280,7 @@ for epoch in range(epochs):
     #     meow_scores.append(meow_fit)
 
     # mean_value = np.mean(meow_scores)
-
-    with open("output1.txt", "a") as f:
+    with open(output_file, "a") as f:
         # print(str(epoch)+": "+str(mean_value), file=f)
         print(f"Epoch {epoch+1+gen}/{epochs}, Gas/Brake Loss (1% dataset): {gb_avg_loss:.4f}, Left/Right Loss: {lr_avg_loss:.4f}", file = f)
 

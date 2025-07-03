@@ -1,3 +1,5 @@
+import math
+
 max_car_mass=100
 
 max_car_length=200
@@ -21,3 +23,15 @@ states_count = 4
 # rays count doubled cuz there are rays in front of the car
 # + in the direction where car moveds
 inputs_count = params_count + states_count + 2 * rays_count
+
+
+replay_size=110
+last_size=10
+
+angle_of_view_gb=math.pi*7/8
+all_rays_gb=5
+
+angle_of_view_lr=math.pi*7/8
+all_rays_lr=11
+
+

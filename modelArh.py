@@ -385,12 +385,280 @@ class CarGameAgentDoubleMaybeSneaky(nn.Module):
         x = self.lrelu(self.fc1(x))
         x = self.lrelu(self.fc2(x))
         x = self.lrelu(self.fc3(x))
-        x = self.lrelu(self.fc4(x))
         x = self.lrelu(self.fc5(x))
         x = self.lrelu(self.fc6(x))
         x = self.out(x)
         return x
 
+class CarGameAgentDoubleMaybeSneakyBig(nn.Module):
+    def __init__(self, input_size):
+        super(CarGameAgentDoubleMaybeSneakyBig, self).__init__()
+
+        self.fc1 = nn.Linear(input_size, 128)
+        self.fc2 = nn.Linear(128, 256)
+        self.fc3 = nn.Linear(256, 256)
+        self.fc4 = nn.Linear(256, 128)
+        self.out = nn.Linear(128, 3)
+
+        self.lrelu = nn.LeakyReLU(negative_slope=0.01)
+
+    def forward(self, x):
+        x = self.lrelu(self.fc1(x))
+        x = self.lrelu(self.fc2(x))
+        x = self.lrelu(self.fc3(x))
+        x = self.lrelu(self.fc4(x))
+
+        x = self.out(x)
+        return x
+
+
+
+class CarGameAgentDoubleMaybeFrontMid(nn.Module):
+    def __init__(self, input_size):
+        super(CarGameAgentDoubleMaybeFrontMid, self).__init__()
+
+        self.fc1 = nn.Linear(input_size, 128)
+        self.fc2 = nn.Linear(128, 256)
+        self.fc3 = nn.Linear(256, 128)
+        self.out = nn.Linear(128, 6)
+
+        self.lrelu = nn.LeakyReLU(negative_slope=0.01)
+
+    def forward(self, x):
+        x = self.lrelu(self.fc1(x))
+        x = self.lrelu(self.fc2(x))
+        x = self.lrelu(self.fc3(x))
+        x = self.out(x)
+        return x
+
+    def answer(self, x):
+        return [x[0],x[1],x[3],x[4]]
+
+    def run_in_environment(self, env, visualize=True, maxsteps=500, device="cuda",startvx=0,startstep=0,plotenzi_loc=None):
+        """
+        Runs the model in the environment once until done.
+
+        Args:
+            env: Initialized environment
+            visualize (bool): If True, shows pygame window
+            maxsteps (int): Max steps before auto-termination
+            device (str): 'cpu' or 'cuda' for running the model
+        """
+        self.to(device)
+
+        color_copy=env.car.color
+
+        if visualize:
+            env.start_pygame()
+
+        env.init_replay()
+        # state = env.get_replay()
+        total_reward = 0
+        running = True
+
+        action_numbers=[[0,0,0],[0,0,0]]
+
+        actions_save=[]
+
+        
+
+
+        while running:
+            if visualize:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        running = False
+                env.car.color=color_copy
+
+            
+
+            # if env.car.vx<startvx and env.steps<startstep:
+            #     force_it=True
+            # else:
+            #     force_it=False
+            force_it=False
+            state = env.get_replay()
+            state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
+
+            
+            # os.system('clear')
+            # print("------------------------------------------")
+            # print(state)
+            with torch.no_grad():
+                probs = self(state_tensor)
+            
+            probs_gb = probs[0, :3]
+            probs_lr = probs[0, 3:]
+
+            # Apply softmax per group for interpretable probabilities
+            probs_gb = torch.softmax(probs_gb, dim=0)
+            probs_lr = torch.softmax(probs_lr, dim=0)
+
+            # Choose actions based on argmax
+            gb_choice = torch.argmax(probs_gb).item()  # 0=gas, 1=brake, 2=neither
+            lr_choice = torch.argmax(probs_lr).item()  # 0=left, 1=right, 2=neither
+
+            actions_save.append(probs_gb)
+
+            chosen_actions = [False, False, False, False]  # [gas, brake, left, right]
+
+            
+
+            action_numbers[0][gb_choice]+=1
+            action_numbers[1][lr_choice]+=1
+
+            if gb_choice == 0:
+                chosen_actions[0] = True
+                
+            elif gb_choice == 1:
+                chosen_actions[1] = True
+                if visualize:
+                    env.car.color=([120,120,120])
+
+
+
+
+
+            if lr_choice == 0:
+                chosen_actions[2] = True
+            elif lr_choice == 1:
+                chosen_actions[3] = True
+
+
+            
+            
+
+            
+
+
+
+            # os.system('clear')
+            if visualize:
+                print(probs_gb*100)
+                print(probs_lr*100)
+                print(gb_choice)
+                print(lr_choice)
+                print(f"Gas/Brake probs: {probs_gb.cpu().numpy()}")
+                print(f"Left/Right probs: {probs_lr.cpu().numpy()}")
+                print(f"Chosen actions: {chosen_actions}")
+
+            _, reward, done, steps, score = env.step(chosen_actions)
+            env.update_replay()
+            total_reward += reward
+
+            if visualize:
+                env.render()
+
+            if done or steps >= maxsteps:
+                running = False
+
+        self.to("cpu")
+        env.close()
+        if visualize:
+            print(action_numbers)
+        if visualize and plotenzi_loc is not None:
+            probs_gas = [p[0] for p in actions_save]
+            probs_brake = [p[1] for p in actions_save]
+            probs_neither = [p[2] for p in actions_save]
+
+            # Gas Probability Plot
+            plt.figure(figsize=(10, 4))
+            plt.plot(probs_gas, color='green')
+            plt.xlabel('Timestep')
+            plt.ylabel('Gas Probability')
+            plt.title('Gas Probability Over Time')
+            plt.grid()
+            plt.savefig(plotenzi_loc + "_gb_gas.png")
+            plt.close()
+
+            # Brake Probability Plot
+            plt.figure(figsize=(10, 4))
+            plt.plot(probs_brake, color='red')
+            plt.xlabel('Timestep')
+            plt.ylabel('Brake Probability')
+            plt.title('Brake Probability Over Time')
+            plt.grid()
+            plt.savefig(plotenzi_loc + "_gb_brake.png")
+            plt.close()
+
+            # Neither gb Probability Plot
+            plt.figure(figsize=(10, 4))
+            plt.plot(probs_neither, color='blue')
+            plt.xlabel('Timestep')
+            plt.ylabel('Neither gb Probability')
+            plt.title('Neither gb Probability Over Time')
+            plt.grid()
+            plt.savefig(plotenzi_loc + "_gb_neither.png")
+            plt.close()
+
+
+
+
+            # Left Probability Plot
+            plt.figure(figsize=(10, 4))
+            plt.plot(probs_gas, color='green')
+            plt.xlabel('Timestep')
+            plt.ylabel('Left Probability')
+            plt.title('Left Probability Over Time')
+            plt.grid()
+            plt.savefig(plotenzi_loc + "_lr_left.png")
+            plt.close()
+
+            # Right Probability Plot
+            plt.figure(figsize=(10, 4))
+            plt.plot(probs_brake, color='red')
+            plt.xlabel('Timestep')
+            plt.ylabel('Right Probability')
+            plt.title('Right Probability Over Time')
+            plt.grid()
+            plt.savefig(plotenzi_loc + "_lr_right.png")
+            plt.close()
+
+            # Neither lr Probability Plot
+            plt.figure(figsize=(10, 4))
+            plt.plot(probs_neither, color='blue')
+            plt.xlabel('Timestep')
+            plt.ylabel('Neither lr Probability')
+            plt.title('Neither lr Probability Over Time')
+            plt.grid()
+            plt.savefig(plotenzi_loc + "_lr_neither.png")
+            plt.close()
+
+        
+        return total_reward
+
+
+class CarGameAgentDoubleMaybeSneakyMid(nn.Module):
+    def __init__(self, input_size):
+        super(CarGameAgentDoubleMaybeSneakyMid, self).__init__()
+
+        self.fc1 = nn.Linear(input_size, 128)
+        self.fc2 = nn.Linear(128, 256)
+        self.fc3 = nn.Linear(256, 128)
+        self.out = nn.Linear(128, 3)
+
+        self.lrelu = nn.LeakyReLU(negative_slope=0.01)
+
+    def forward(self, x):
+        x = self.lrelu(self.fc1(x))
+        x = self.lrelu(self.fc2(x))
+        x = self.lrelu(self.fc3(x))
+        x = self.out(x)
+        return x
+
+class CarGameAgentDoubleMaybeSneakySmall(nn.Module):
+    def __init__(self, input_size):
+        super(CarGameAgentDoubleMaybeSneakySmall, self).__init__()
+
+        self.fc1 = nn.Linear(input_size, 128)
+        self.out = nn.Linear(128, 3)
+
+        self.lrelu = nn.LeakyReLU(negative_slope=0.01)
+
+    def forward(self, x):
+        x = self.lrelu(self.fc1(x))
+        x = self.out(x)
+        return x
 
 class CombinedCarGameAgentMaybe(nn.Module):
     def __init__(self, model_gas_brake, model_left_right):
@@ -491,15 +759,15 @@ class CombinedCarGameAgentMaybe(nn.Module):
 
 
 
-            os.system('clear')
+            # os.system('clear')
 
-            print(probs_gb*100)
-            print(probs_lr*100)
-            print(gb_choice)
-            print(lr_choice)
-            print(f"Gas/Brake probs: {probs_gb.cpu().numpy()}")
-            print(f"Left/Right probs: {probs_lr.cpu().numpy()}")
-            print(f"Chosen actions: {chosen_actions}")
+            # print(probs_gb*100)
+            # print(probs_lr*100)
+            # print(gb_choice)
+            # print(lr_choice)
+            # print(f"Gas/Brake probs: {probs_gb.cpu().numpy()}")
+            # print(f"Left/Right probs: {probs_lr.cpu().numpy()}")
+            # print(f"Chosen actions: {chosen_actions}")
 
             state, reward, done, steps, score = env.step(chosen_actions)
             total_reward += reward
@@ -536,3 +804,234 @@ class CombinedCarGameAgentMaybe(nn.Module):
 
         
         return total_reward
+
+
+class CombinedCarGameAgentMaybeReplay(nn.Module):
+    def __init__(self, model_gas_brake, model_left_right):
+        super(CombinedCarGameAgentMaybeReplay, self).__init__()
+        
+        self.model_gb = model_gas_brake  # Outputs logits for [gas, brake, neither]
+        self.model_lr = model_left_right  # Outputs logits for [left, right, neither]
+
+    def forward(self, x,force_it=False):
+        logits_gb = self.model_gb(x)  # Shape: [batch_size, 3]
+        logits_lr = self.model_lr(x)  # Shape: [batch_size, 3]
+
+        probs_gb = F.softmax(logits_gb, dim=1)  # Convert to probabilities
+        # probs_gb = torch.tensor([[0, 1, 0]], dtype=torch.float32).to(x.device)
+        probs_lr = F.softmax(logits_lr, dim=1)
+
+        # if force_it:
+        #     probs_gb = torch.tensor([[1, 0, 0]], dtype=torch.float32).to(x.device)
+
+
+        return probs_gb, probs_lr  # Return both probability distributions
+
+    def run_in_environment(self, env, visualize=True, maxsteps=500, device="cuda",startvx=0,startstep=0,plotenzi_loc=None):
+        """
+        Runs the model in the environment once until done.
+
+        Args:
+            env: Initialized environment
+            visualize (bool): If True, shows pygame window
+            maxsteps (int): Max steps before auto-termination
+            device (str): 'cpu' or 'cuda' for running the model
+        """
+        self.to(device)
+
+        color_copy=env.car.color
+
+        if visualize:
+            env.start_pygame()
+
+        env.init_replay()
+        # state = env.get_replay()
+        total_reward = 0
+        running = True
+
+        action_numbers=[[0,0,0],[0,0,0]]
+
+        actions_save=[]
+
+        
+
+
+        while running:
+            if visualize:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        running = False
+                env.car.color=color_copy
+
+            
+
+            # if env.car.vx<startvx and env.steps<startstep:
+            #     force_it=True
+            # else:
+            #     force_it=False
+            force_it=False
+            state = env.get_replay()
+            state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(device)
+
+            
+            # os.system('clear')
+            # print("------------------------------------------")
+            # print(state)
+            with torch.no_grad():
+                probs_gb, probs_lr = self(state_tensor,force_it=force_it)
+                
+
+            # Choose actions based on argmax
+            gb_choice = torch.argmax(probs_gb, dim=1).item()  # 0=gas, 1=brake, 2=neither
+            lr_choice = torch.argmax(probs_lr, dim=1).item()  # 0=left, 1=right, 2=neither
+
+            actions_save.append(probs_gb[0])
+
+            chosen_actions = [False, False, False, False]  # [gas, brake, left, right]
+
+            
+
+            action_numbers[0][gb_choice]+=1
+            action_numbers[1][lr_choice]+=1
+
+            if gb_choice == 0:
+                chosen_actions[0] = True
+                
+            elif gb_choice == 1:
+                chosen_actions[1] = True
+                if visualize:
+                    env.car.color=([120,120,120])
+
+
+
+
+
+            if lr_choice == 0:
+                chosen_actions[2] = True
+            elif lr_choice == 1:
+                chosen_actions[3] = True
+
+
+            
+            
+
+            
+
+
+
+            # os.system('clear')
+            if visualize:
+                print(probs_gb*100)
+                print(probs_lr*100)
+                print(gb_choice)
+                print(lr_choice)
+                print(f"Gas/Brake probs: {probs_gb.cpu().numpy()}")
+                print(f"Left/Right probs: {probs_lr.cpu().numpy()}")
+                print(f"Chosen actions: {chosen_actions}")
+
+            _, reward, done, steps, score = env.step(chosen_actions)
+            env.update_replay()
+            total_reward += reward
+
+            if visualize:
+                env.render()
+
+            if done or steps >= maxsteps:
+                running = False
+
+        self.to("cpu")
+        env.close()
+        if visualize:
+            print(action_numbers)
+        if visualize and plotenzi_loc is not None:
+            probs_gas = [p[0] for p in actions_save]
+            probs_brake = [p[1] for p in actions_save]
+            probs_neither = [p[2] for p in actions_save]
+
+            # Gas Probability Plot
+            plt.figure(figsize=(10, 4))
+            plt.plot(probs_gas, color='green')
+            plt.xlabel('Timestep')
+            plt.ylabel('Gas Probability')
+            plt.title('Gas Probability Over Time')
+            plt.grid()
+            plt.savefig(plotenzi_loc + "_gb_gas.png")
+            plt.close()
+
+            # Brake Probability Plot
+            plt.figure(figsize=(10, 4))
+            plt.plot(probs_brake, color='red')
+            plt.xlabel('Timestep')
+            plt.ylabel('Brake Probability')
+            plt.title('Brake Probability Over Time')
+            plt.grid()
+            plt.savefig(plotenzi_loc + "_gb_brake.png")
+            plt.close()
+
+            # Neither gb Probability Plot
+            plt.figure(figsize=(10, 4))
+            plt.plot(probs_neither, color='blue')
+            plt.xlabel('Timestep')
+            plt.ylabel('Neither gb Probability')
+            plt.title('Neither gb Probability Over Time')
+            plt.grid()
+            plt.savefig(plotenzi_loc + "_gb_neither.png")
+            plt.close()
+
+
+
+
+            # Left Probability Plot
+            plt.figure(figsize=(10, 4))
+            plt.plot(probs_gas, color='green')
+            plt.xlabel('Timestep')
+            plt.ylabel('Left Probability')
+            plt.title('Left Probability Over Time')
+            plt.grid()
+            plt.savefig(plotenzi_loc + "_lr_left.png")
+            plt.close()
+
+            # Right Probability Plot
+            plt.figure(figsize=(10, 4))
+            plt.plot(probs_brake, color='red')
+            plt.xlabel('Timestep')
+            plt.ylabel('Right Probability')
+            plt.title('Right Probability Over Time')
+            plt.grid()
+            plt.savefig(plotenzi_loc + "_lr_right.png")
+            plt.close()
+
+            # Neither lr Probability Plot
+            plt.figure(figsize=(10, 4))
+            plt.plot(probs_neither, color='blue')
+            plt.xlabel('Timestep')
+            plt.ylabel('Neither lr Probability')
+            plt.title('Neither lr Probability Over Time')
+            plt.grid()
+            plt.savefig(plotenzi_loc + "_lr_neither.png")
+            plt.close()
+
+        
+        return total_reward
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+

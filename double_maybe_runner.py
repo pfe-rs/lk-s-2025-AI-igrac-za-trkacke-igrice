@@ -1,14 +1,16 @@
 import sys
 from agent.utils import get_device
-from modelArh import CarGameAgentDoubleMaybe, CombinedCarGameAgentMaybe,CarGameAgentDoubleMaybeSneaky
+from modelArh import *
 from gym_env_custom import CustomEnvGAWithQuads
 import time
 import torch
 
 
-gb_model_loc="models_supervised_maybe6/gas_brake_model400.pkl"
-lr_model_loc="models_supervised_maybe7/steer_model10.pkl"
-level_loc="clean-codes/levels/4.pkl"
+gb_model_loc="models_supervised_maybe2/gas_brake_model44.pkl"
+lr_model_loc="models_supervised_maybe2/steer_model44.pkl"
+level_loc="clean-codes/levels/11.pkl"
+
+
 
 
 start_time = time.time()
@@ -20,6 +22,7 @@ ray_number = 7
 parametri = 6
 stanja = 4
 n_inputs = parametri + stanja + 2 * ray_number
+n_inputs=24
 maxsteps = 1500
 
 
@@ -34,8 +37,8 @@ if __name__ == "__main__":
 
     device = get_device()
 
-    model_gas_brake = CarGameAgentDoubleMaybeSneaky(n_inputs).to(device)
-    model_left_right = CarGameAgentDoubleMaybeSneaky(n_inputs).to(device)
+    model_gas_brake = CarGameAgentDoubleMaybe(n_inputs).to(device)
+    model_left_right = CarGameAgentDoubleMaybe(n_inputs).to(device)
 
     model_gas_brake.load_state_dict(torch.load(model_path_gb))
     model_left_right.load_state_dict(torch.load(model_path_lr))
@@ -44,7 +47,7 @@ if __name__ == "__main__":
     model.eval()
 
     reward = model.run_in_environment(
-        env_fn(), visualize=True, maxsteps=10000, device=device,plotenzi_loc="plotenzi1"
+        env_fn(), visualize=True, maxsteps=10000, device=device,plotenzi_loc="plotenzi7"
     )
 
     end_time = time.time()

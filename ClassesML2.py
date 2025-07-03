@@ -102,7 +102,7 @@ class Level:
 
 class Car:
     # Constructor method to initialize attributesFlevel
-    def __init__(self, mass, length, width, color,pull,ni=5,location=(100,100,0.5*math.pi),k=5):
+    def __init__(self, mass, length, width, color,pull,ni=5,location=(100,100,0.5*math.pi),k=5,turning_speed=0.05):
         self.mass=mass
         self.length=length
         self.width=width
@@ -122,6 +122,7 @@ class Car:
         self.vy=0
         self.rfx=0
         self.rfy=0
+        self.turning_speed=turning_speed
         
         self.color=color
     def tostart(self,location):
@@ -240,9 +241,9 @@ class Car:
     def brake(self):
         self.ni=self.k*self.bni
     def steerleft(self):
-        self.ori-=0.05
+        self.ori-=self.turning_speed
     def steerright(self):
-        self.ori+=0.05
+        self.ori+=self.turning_speed
         
 
     def wallinter(self, lines):

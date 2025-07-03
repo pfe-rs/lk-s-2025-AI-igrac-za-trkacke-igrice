@@ -468,3 +468,33 @@ def load_only(
 
     return gas_brake,left_right
 
+def load_dataset_clean(recordings_folder="clean-codes/recordings/"):
+    """
+    Učitava sve podatke i čisti nelogične akcije:
+    - Gas i brake ne mogu biti zajedno
+    - Left i right ne mogu biti zajedno
+
+    Vraća stanja i akcije bez balansiranja, sve ostaje u formatu [gas, brake, left, right].
+    """
+    all_states = []
+    all_actions = []
+
+    for filename in os.listdir(recordings_folder):
+        if filename.endswith(".pkl"):
+            with open(os.path.join(recordings_folder, filename), "rb") as f:
+                record = pickle.load(f)
+
+                for state, action in record:
+                    gas, brake, left, right = [float(a) for a in action]
+
+                    # Čišćenje nelogičnih kombinacija
+                    if gas and brake:
+                        gas = 0
+                    if left and right:
+                        left = 0
+
+                    all_states.append(state)
+                    all_actions.append([gas, brake,not (gas or brake), left, right,not (left or right)])
+
+    print(f"[INFO] Učitano {len(all_states)} uzoraka iz '{recordings_folder}'")
+    return all_states, all_actions
