@@ -59,12 +59,7 @@ class Env(gym.Env[ObservationT, ActionT]):
         self.car = car
         self._on_level_update()
 
-        self.state = EnvState(
-            car_mass=clamp(0, 1, self.car.mass/max_car_mass),
-            car_length=clamp(0, 1, self.car.length/max_car_length),
-            car_width=clamp(0, 1, self.car.width/max_car_width),
-            car_brake_friction_multiplier=clamp(0, 1, self.car.brake_friction_multiplier/max_car_k),
-        )
+        self.state = EnvState()
 
         self.steps = 0
         self.score = 0

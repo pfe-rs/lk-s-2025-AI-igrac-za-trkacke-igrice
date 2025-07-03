@@ -10,6 +10,7 @@ class BaseTrainerArgs:
     training_log_path: Path
     checkpoints_path: Path
     best_path: Path
+    vecnorm_path: Path
     total_timesteps: int
     epochs: int  # Added here
 
@@ -20,6 +21,7 @@ class BaseTrainer:
     DEFAULT_LOG_PATH = Path("./logs/training")
     DEFAULT_CHECKPOINTS_PATH = Path("./models/checkpoints")
     DEFAULT_BEST_PATH = Path("./models/best")
+    DEFAULT_VECNORM_PATH = Path("models/vecnorm")
     DEFAULT_TOTAL_TIMESTEPS = 100000
     DEFAULT_EPOCHS = 100
 
@@ -54,6 +56,10 @@ class BaseTrainer:
             "--epochs", type=int, default=self.DEFAULT_EPOCHS,
             help=f"Optional limit for number of epochs (default: {self.DEFAULT_EPOCHS})"
         )
+        self.args_parser.add_argument(
+            "--vecnorm_path", type=Path, default=self.DEFAULT_VECNORM_PATH,
+            help=f"Path to the file containing normalization vectors of the environment (default: {self.DEFAULT_VECNORM_PATH})"
+        )
 
     def _parse_args(self) -> BaseTrainerArgs:
         args = self.args_parser.parse_args()
@@ -63,6 +69,7 @@ class BaseTrainer:
             training_log_path=args.log_path,
             checkpoints_path=args.checkpoints_path,
             best_path=args.best_path,
+            vecnorm_path=args.vecnorm_path,
             total_timesteps=args.total_timesteps,
             epochs=args.epochs
         )

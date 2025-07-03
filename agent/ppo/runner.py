@@ -1,10 +1,12 @@
 import argparse
+from numpy import mod
 import pygame
 from pathlib import Path
 from pygame.font import Font
 from pygame.time import Clock
 from stable_baselines3 import PPO
 from pygame import Color, SurfaceType, Vector2, surfarray
+from stable_baselines3.common.vec_env import VecNormalize
 
 from agent.ppo.env import Env, env_factory
 
@@ -84,7 +86,7 @@ if __name__ == "__main__":
                 done = True
                 break
 
-        action, _states = model.predict(obs)
+        action, _states = model.predict(obs, deterministic=True)
         obs, reward, terminated, truncated, info = env.step(action)
 
         render(screen, clock, font, env)

@@ -35,8 +35,8 @@ class PPOTrainer(BaseTrainer):
         # also initializes weights
         policy_kwargs = {
             "net_arch": {
-                "pi": [128, 64],
-                "vf": [128, 64]  
+                "pi": [128,128, 64, 64],
+                "vf": [128,128, 64, 64]
             },
             "activation_fn": nn.LeakyReLU,
             # applies orthogonal initialization to the linear layers
@@ -70,8 +70,8 @@ class PPOTrainer(BaseTrainer):
                 self.env,
                 policy_kwargs=policy_kwargs,
                 ent_coef=0.01, # Entropy coefficient for exploration. Default 0
-                vf_coef=0.7, # increased since value function wasn't learning
-                learning_rate=3e-4,
+                vf_coef=4e-3, # increased since value function wasn't learning
+                learning_rate=1e-3,
                 n_steps=2048,
                 batch_size=64,
                 n_epochs=self.args.epochs,
@@ -107,7 +107,7 @@ class PPOTrainer(BaseTrainer):
             verbose=1,
             deterministic=True,
             callback_after_eval=StopTrainingOnNoModelImprovement(
-                max_no_improvement_evals=5,
+                max_no_improvement_evals=15,
                 min_evals=2,
                 verbose=1
             )
