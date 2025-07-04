@@ -68,9 +68,9 @@ class MathModel():
             return a
 
         diff = normalize_angle(angle - env.car.ori)
-        os.system('clear')
-        print("angle of the best v: "+str(angle))
-        print("angle of the model: "+str(env.car.ori))
+        # os.system('clear')
+        # print("angle of the best v: "+str(angle))
+        # print("angle of the model: "+str(env.car.ori))
 
         if diff > 0.05:
             return  [0, 1] # Steer Left
@@ -191,7 +191,7 @@ class MathModel():
         return distances
 
     
-    def result(self,env,visualize=False):
+    def result(self,env,visualize=False,visualize_gb=False,visualize_lr=False):
         self.v_ori = math.atan2(env.car.vy, env.car.vx)
         
         self.v=math.hypot(env.car.vx,env.car.vy)
@@ -200,14 +200,17 @@ class MathModel():
 
         # print([self.last_ori,self.v_ori])
         # os.system('clear')
-        print("Speed: "+str(self.v/self.pixel_per_meter*3.6)+"km/h")
-        self.reset_rays(env,visualize)
-        decision=self.gb_decide(env,visualize)+self.lr_decide(env,visualize)
+        # print("Speed: "+str(self.v/self.pixel_per_meter*3.6)+"km/h")
+        self.average_speed+=self.v/self.pixel_per_meter*3.6
+        self.reset_rays(env,visualize_lr)
+        decision=self.gb_decide(env,visualize_gb)+self.lr_decide(env,visualize_lr)
         self.last_ori=self.v_ori
         
         return decision
-    def run_in_environment(self, env, visualize=True, maxsteps=500):
+    
+    def run_in_environment(self, env, visualize=True,visualize_gb=True,visualize_lr=False, maxsteps=500):
         self.last_ori=env.car.ori
+        self.average_speed=0
         if visualize:
             env.start_pygame()
 
@@ -228,7 +231,7 @@ class MathModel():
             
 
             # Move actions back to CPU for compatibility with environment
-            chosen_actions = self.result(env,visualize)
+            chosen_actions = self.result(env,visualize,visualize_gb,visualize_gb)
 
             reward, done, steps = env.step(chosen_actions)
             total_reward += reward
@@ -238,6 +241,7 @@ class MathModel():
 
             if done or steps >= maxsteps:
                 running = False
+        self.average_speed=self.average_speed/steps
         env.close()
         return total_reward
     

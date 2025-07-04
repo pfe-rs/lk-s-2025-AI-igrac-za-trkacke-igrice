@@ -2,6 +2,7 @@ import pygame
 import numpy as np
 import math
 from quad_func import quad_tree_from_list
+from agent.const import image_path_car
 
 class Line:
     def __init__(self, x1, y1, x2, y2):
@@ -178,45 +179,61 @@ class Car:
         return quads
 
     def show(self, screen):
-        cos_ori = math.cos(self.ori)
-        sin_ori = math.sin(self.ori)
-        half_width = self.length / 2
-        half_length = self.width / 2
-        corners = [
-            (-half_width, -half_length),  # Top-left
-            (half_width, -half_length),   # Top-right
-            (half_width, half_length),    # Bottom-right
-            (-half_width, half_length)    # Bottom-left
-        ]
-        rotated_corners = [
-            (
-                self.x + x * cos_ori - y * sin_ori,
-                self.y + x * sin_ori + y * cos_ori
-            )
-            for x, y in corners
-        ]
-        pygame.draw.polygon(screen, self.color, rotated_corners)
-            # Highlight the front of the car
-        front_center_x = self.x + half_length * cos_ori
-        front_center_y = self.y + half_length * sin_ori
+        if image_path_car!=None:
+            # Load image
+            image = pygame.image.load(image_path_car).convert_alpha()
 
-        # Draw a small triangle at the front to indicate the car's direction
-        front_triangle = [
-            (
-                front_center_x + half_width * 0.5 * sin_ori,
-                front_center_y - half_width * 0.5 * cos_ori
-            ),
-            (
-                front_center_x - half_width * 0.5 * sin_ori,
-                front_center_y + half_width * 0.5 * cos_ori
-            ),
-            (
-                front_center_x + half_length * 0.5 * cos_ori,
-                front_center_y + half_length * 0.5 * sin_ori
-            )
-        ]
-        pygame.draw.polygon(screen, (255, 0, 0), front_triangle)  # Red triangle for the front indicator
-        
+            # Resize image
+            scaled_image = pygame.transform.scale(image, (int(self.length), int(self.width)))
+
+            # Rotate image (Pygame rotates in degrees, clockwise, so -math.degrees(ori))
+            rotated_image = pygame.transform.rotate(scaled_image, -math.degrees(self.ori))
+
+            # Get new rect and center it on (x, y)
+            rect = rotated_image.get_rect(center=(self.x, self.y))
+
+            # Blit to screen
+            screen.blit(rotated_image, rect.topleft)
+        else:
+            cos_ori = math.cos(self.ori)
+            sin_ori = math.sin(self.ori)
+            half_width = self.length / 2
+            half_length = self.width / 2
+            corners = [
+                (-half_width, -half_length),  # Top-left
+                (half_width, -half_length),   # Top-right
+                (half_width, half_length),    # Bottom-right
+                (-half_width, half_length)    # Bottom-left
+            ]
+            rotated_corners = [
+                (
+                    self.x + x * cos_ori - y * sin_ori,
+                    self.y + x * sin_ori + y * cos_ori
+                )
+                for x, y in corners
+            ]
+            pygame.draw.polygon(screen, self.color, rotated_corners)
+                # Highlight the front of the car
+            front_center_x = self.x + half_length * cos_ori
+            front_center_y = self.y + half_length * sin_ori
+
+            # Draw a small triangle at the front to indicate the car's direction
+            front_triangle = [
+                (
+                    front_center_x + half_width * 0.5 * sin_ori,
+                    front_center_y - half_width * 0.5 * cos_ori
+                ),
+                (
+                    front_center_x - half_width * 0.5 * sin_ori,
+                    front_center_y + half_width * 0.5 * cos_ori
+                ),
+                (
+                    front_center_x + half_length * 0.5 * cos_ori,
+                    front_center_y + half_length * 0.5 * sin_ori
+                )
+            ]
+            pygame.draw.polygon(screen, (255, 0, 0), front_triangle)  # Red triangle for the front indicator
+            
 
 
 

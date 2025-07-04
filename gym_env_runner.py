@@ -2,7 +2,7 @@ from gym_env_custom import CustomEnvGAWithQuads
 
 import pygame
 
-ray_number=7
+ray_number=25
 parametri=6
 stanja=4
 
@@ -39,7 +39,7 @@ while running:
         action[3]=True
 
     # === Step ===
-    state, reward, done, _, _ = env.step(action,from_state=False)
+    state, reward, done, _, _ = env.step(action,from_state=True)
     env.render()
 
     if done:

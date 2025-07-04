@@ -20,7 +20,7 @@ n_inputs=584
 maxsteps=1500
 
 
-model_path="models_supervised_absolute/model2001.pkl"
+model_path="models_supervised_absolute/model2146.pkl"
 level_file="clean-codes/levels/11.pkl"
 
 

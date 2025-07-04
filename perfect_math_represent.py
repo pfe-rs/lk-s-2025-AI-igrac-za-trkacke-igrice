@@ -205,13 +205,14 @@ class MathModel():
     def result(self,env,visualize_gb=False,visualize_lr=False):
         self.v_ori = math.atan2(env.car.vy, env.car.vx)
         self.v=math.hypot(env.car.vx,env.car.vy)
-        os.system('clear')
-        print("Speed: "+str(self.v/self.pixel_per_meter*3.6)+"km/h")
+        # os.system('clear')
+        self.average_speed+=self.v/self.pixel_per_meter*3.6
+        # print("Speed: "+str()+"km/h")
         self.reset_rays(env,visualize_lr)
         return self.gb_decide(env,visualize_gb)+self.lr_decide(env,visualize_lr)
 
     def run_in_environment(self, env, visualize=True,visualize_gb=True,visualize_lr=True, maxsteps=500,label=69):
-        
+        self.average_speed=0
 
         if visualize:
             env.start_pygame()
@@ -249,6 +250,7 @@ class MathModel():
             if done or steps >= maxsteps:
                 running = False
                 break
+        self.average_speed=self.average_speed/steps
         env.close()
         return total_reward
     

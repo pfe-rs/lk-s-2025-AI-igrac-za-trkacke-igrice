@@ -46,7 +46,7 @@ model = MathModel(0.1,0.7,side_offset = 40,pixel_per_meter=pixel_per_meter)
 
 env=env_fn()
 # reward=model.run_in_environment(env,visualize=True ,visualize_gb=True,visualize_lr=True,maxsteps=maxsteps)
-reward=model.run_in_environment(env,visualize=True ,maxsteps=maxsteps)
+reward=model.run_in_environment(env,visualize=True,visualize_gb=True,visualize_lr=True ,maxsteps=maxsteps)
 # (self, env, visualize=True, maxsteps=500, device="cuda",startvx=0,startstep=0,plotenzi_loc=None)
 # best_model.run_in_environment(env_fn(), visualize=True, threshold=0.5,maxsteps=200)
 

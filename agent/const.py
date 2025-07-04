@@ -34,4 +34,5 @@ all_rays_gb=5
 angle_of_view_lr=math.pi*7/8
 all_rays_lr=11
 
+image_path_car="clean-codes/car_folder/carwhite.png"
 
