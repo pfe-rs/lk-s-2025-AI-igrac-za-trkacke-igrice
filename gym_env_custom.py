@@ -451,7 +451,7 @@ class CustomEnvGAWithQuads(gym.Env):
         #     reward = -10
         #     done = True
         #     self.run = False
-        if self.car.wallinter(self.chosen_walls):
+        if self.car.wallinter(self.level.walls):
             # reward = -10
             done = True
             self.run = False
@@ -472,7 +472,7 @@ class CustomEnvGAWithQuads(gym.Env):
         self.clock.tick(self.FPS)
 
         if not self.from_state:
-            self.level.draw(self.screen,chosen_walls=self.chosen_walls)
+            self.level.draw(self.screen)
             # self.level.draw(self.screen)
 
             self.level.checkpoints[self.check_number].draw(self.screen,(100,0,100))
@@ -565,14 +565,10 @@ class CustomEnvGAWithQuadsMath(gym.Env):
         self.car.ac(self.FPS)
         self.car.step(self.FPS)
 
-        # os.system('clear')
-        decided_quad=self.car.decide_quad(self.level)
-        self.chosen_walls= get_chosen_ones(self.level.walls,self.level.boolean_walls,decided_quad)
-
         reward = 0  # You can design this better
         done = False
 
-        if self.car.wallinter(self.chosen_walls):
+        if self.car.wallinter(self.level.walls):
             # reward = -10
             done = True
             self.run = False

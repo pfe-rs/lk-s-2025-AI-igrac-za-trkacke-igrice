@@ -28,15 +28,15 @@ class PPOTrainer(BaseTrainer):
         # Create environment with wrappers
         self.env = DummyVecEnv([lambda: env_factory(self.args.levels_path)])
         self.env = VecMonitor(self.env)
-        self.env = VecNormalize(self.env, norm_obs=True, norm_reward=True)
+        self.env = VecNormalize(self.env, norm_obs=False, norm_reward=False)
         
         # Define network architecture
         # NOTE: sb3 automatically adds input, output layers and sigmoid on the exit
         # also initializes weights
         policy_kwargs = {
             "net_arch": {
-                "pi": [128,128, 64, 64],
-                "vf": [128,128, 64, 64]
+                "pi": [128, 128, 64],
+                "vf": [128, 128, 64]
             },
             "activation_fn": nn.LeakyReLU,
             # applies orthogonal initialization to the linear layers
@@ -71,7 +71,7 @@ class PPOTrainer(BaseTrainer):
                 policy_kwargs=policy_kwargs,
                 ent_coef=0.01, # Entropy coefficient for exploration. Default 0
                 vf_coef=4e-3, # increased since value function wasn't learning
-                learning_rate=1e-3,
+                learning_rate=5e-3,
                 n_steps=2048,
                 batch_size=64,
                 n_epochs=self.args.epochs,
