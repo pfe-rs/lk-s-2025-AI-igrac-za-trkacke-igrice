@@ -1,7 +1,7 @@
 import sys
 from agent.utils import get_device
 # from perfect_math_drift_master import MathModel
-from perfect_math import MathModel
+from perfect_math_safe_player import MathModel
 from gym_env_custom import CustomEnvGAWithQuadsMath
 import time
 import torch

@@ -26,7 +26,7 @@ maxsteps=1500
 
 lvl_num=random.randint(1,11)
 
-level_file="clean-codes/levels/"+str(lvl_num)+".pkl"
+level_file="levels/"+str(lvl_num)+".pkl"
 
 seconds=30
 maxsteps=seconds*60
@@ -36,7 +36,7 @@ track_width_meters=12
 pixel_per_meter=track_width_pixels/track_width_meters
 
 # car_params = (1200, int(3.4*pixel_per_meter), int(1.7*pixel_per_meter), [100, 200, 255], 20000*pixel_per_meter, 0.05, (0, 0, 0), 9,0.083)
-car_params = (5, 40, 20, [100, 200, 255], 20000, 10, (0, 0, 0), 400)
+car_params = (5, 40, 20, [100, 200, 255], 2000, 10, (0, 0, 0), 80)
 # car_params = (5, 40, 20, [100, 200, 255], 45000, 10, (0, 0, 0), 150)
 
 
