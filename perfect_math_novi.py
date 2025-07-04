@@ -7,7 +7,7 @@ import os
 
 
 class MathModel():
-    def __init__(self,kz,kn,side_offset):
+    def __init__(self,kz,kn,side_offset,pixel_per_meter):
         self.angle_step_gb=angle_of_view_gb/(all_rays_gb-1)
         self.angle_step_lr=angle_of_view_lr/(all_rays_lr-1)
         self.ray_values_gb=None
@@ -17,17 +17,8 @@ class MathModel():
         self.side_offset = side_offset
         self.last_ori=None
         self.v_ori=None
+        self.pixel_per_meter=pixel_per_meter
         # self.lasts[]
-
-    def init_v_ori(self,env):
-        self.last_ori=env.car.ori
-    def reset_v_ori(self,env):
-        self.v_ori=math.hypot(env.car.vx,env.car.vy)
-        th=5
-        if env.car.vx<th and env.car.vy<th:
-            self.v_ori=self.last_ori
-    def reset_last(self,env):
-        self.last_ori=self.v_ori
 
     def reset_rays(self,env):
 
@@ -41,7 +32,7 @@ class MathModel():
         vy=env.car.vy
         g=env.level.g
         kb=env.car.k
-        ori = self.v_ori
+        ori = math.hypot(vx,vy)
         start_ori=ori-angle_of_view_gb/2
         brake_lenghts=[]
         for i in range(all_rays_gb):
@@ -77,7 +68,7 @@ class MathModel():
         
     def lr_decide(self, env,visualize=False):
         max_index = self.ray_values_lr.index(max(self.ray_values_lr))  # Ray with most space
-        v_ori = self.v_ori  # Current car orientation
+        v_ori = math.hypot(env.car.vx,env.car.vy)
         start_ori = v_ori - angle_of_view_lr /2
         angle = start_ori + max_index * self.angle_step_lr  # Direction of the best ray
 
@@ -110,7 +101,7 @@ class MathModel():
         max2=env.level.proportions[1]
         x=env.car.x
         y=env.car.y
-        ori = self.v_ori
+        ori = math.hypot(env.car.vx,env.car.vy)
         walls=env.level.walls
 
         rays = []
@@ -148,7 +139,7 @@ class MathModel():
         max2 = env.level.proportions[1]
         x = env.car.x
         y = env.car.y
-        ori =self.v_ori
+        ori = math.hypot(env.car.vx,env.car.vy)
         walls = env.level.walls
 
         rays = []
@@ -213,14 +204,11 @@ class MathModel():
 
     
     def result(self,env,visualize=False):
-        self.reset_v_ori(env)
         self.reset_rays(env)
         result=self.gb_decide(env,visualize)+self.lr_decide(env,visualize)
-        self.reset_last(env)
         return result
 
     def run_in_environment(self, env, visualize=True, maxsteps=500):
-        self.init_v_ori(env)
         if visualize:
             env.start_pygame()
 

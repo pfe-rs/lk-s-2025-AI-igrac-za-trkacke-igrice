@@ -34,6 +34,8 @@ def get_last_gen(base_dir: str) -> int:
     return largest_number
 
 
+
+# models_dir=
 # === GA Hyperparameters ===
 population_size = 100
 num_generations = 10000000

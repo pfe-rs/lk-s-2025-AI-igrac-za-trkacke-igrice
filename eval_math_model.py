@@ -27,7 +27,7 @@ os.system('clear')
 rewards=[]
 
 # lvl_num=random.randint(1,11)
-for lvl_num in range(5,6):
+for lvl_num in range(12):
     start_time = time.time()
         
 

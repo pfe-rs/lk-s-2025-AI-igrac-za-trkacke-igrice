@@ -28,7 +28,7 @@ inputs_count = params_count + states_count + 2 * rays_count
 replay_size=110
 last_size=10
 
-angle_of_view_gb=math.pi*7/8
+angle_of_view_gb=math.pi/2
 all_rays_gb=5
 
 angle_of_view_lr=math.pi*7/8

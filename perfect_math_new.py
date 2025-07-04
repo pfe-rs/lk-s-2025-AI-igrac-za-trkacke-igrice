@@ -2,12 +2,12 @@ from ClassesML2 import *
 import math
 from agent.const import *
 import os
-
+from tqdm import tqdm
 
 
 
 class MathModel():
-    def __init__(self,kz,kn,side_offset,pixel_per_meter):
+    def __init__(self,kz,kn,side_offset,pixel_per_meter=1):
         self.angle_step_gb=angle_of_view_gb/(all_rays_gb-1)
         self.angle_step_lr=angle_of_view_lr/(all_rays_lr-1)
         self.ray_values_gb=None
@@ -15,19 +15,21 @@ class MathModel():
         self.kz=kz
         self.kn=kn
         self.side_offset = side_offset
+        self.v_ori=None
+        self.v=None
         self.pixel_per_meter=pixel_per_meter
         # self.lasts[]
 
     def reset_rays(self,env,visualize=False):
-        self.ray_values_gb=  self.new_ray_intersection(env,angle_of_view_gb,all_rays_gb,visualize)
+        self.ray_values_gb=  self.new_ray_intersection(env,angle_of_view_gb,all_rays_gb)
         self.ray_values_lr=  self.new_ray_intersection_updated(env,angle_of_view_lr,all_rays_lr,visualize)
 
-    def gb_decide(self,env,visualize=False):
+    def gb_decider(self,env,visualize=False):
         vx=env.car.vx
         vy=env.car.vy
         g=env.level.g
         kb=env.car.k
-        ori = math.atan2(vy, vx)
+        ori = self.v_ori
         start_ori=ori-angle_of_view_gb/2
         brake_lenghts=[]
         for i in range(all_rays_gb):
@@ -36,26 +38,34 @@ class MathModel():
             vxao=vx * math.cos(angle)
             vyao=vy * math.sin(angle)
 
-            sbz=(vxao**2+vyao**2)*(1+self.kz)/(2*g*kb)+max(env.car.length,env.car.width)
+            sbz=(vxao**2+vyao**2)*(1+self.kz)/(2*g*kb*env.car.ni)+max(env.car.length,env.car.width)
             if visualize:
-                line=Line(env.car.x,env.car.y,env.car.x+math.cos(angle)*self.ray_values_gb[i],env.car.y+math.sin(angle)*self.ray_values_gb[i])
-                line.draw(env.screen,([255,255,255]))
+                # line=Line(env.car.x,env.car.y,env.car.x+math.cos(angle)*self.ray_values_gb[i],env.car.y+math.sin(angle)*self.ray_values_gb[i])
+                # line.draw(env.screen,([255,255,255]))
 
                 line=Line(env.car.x,env.car.y,env.car.x+math.cos(angle)*sbz,env.car.y+math.sin(angle)*sbz)
                 line.draw(env.screen,([100,0,100]))
             brake_lenghts.append(sbz)
-
+        
         for i in range(len(brake_lenghts)):
             angle = start_ori+ i * self.angle_step_gb
             sbz=brake_lenghts[i]
-            if(sbz>=self.ray_values_gb[i]):
+            if(self.kn*(sbz)>=self.ray_values_gb[i]):
                 return [0,1]
-            
-        return [1,0]
         
-    def lr_decide(self, env,visualize=False):
+        for i in range(len(brake_lenghts)):
+            angle = start_ori+ i * self.angle_step_gb
+            sbz=brake_lenghts[i]
+            if(sbz<self.ray_values_gb[i]):
+                return [1,0]
+
+        
+            
+        return [0,1]
+    def lr_decider(self,env, visualize=False):
+
         max_index = self.ray_values_lr.index(max(self.ray_values_lr))  # Ray with most space
-        v_ori = math.atan2(env.car.vy, env.car.vx)  # Current car orientation
+        v_ori = self.v_ori # Current car orientation
         start_ori = v_ori - angle_of_view_lr /2
         angle = start_ori + max_index * self.angle_step_lr  # Direction of the best ray
 
@@ -68,9 +78,9 @@ class MathModel():
             return a
 
         diff = normalize_angle(angle - env.car.ori)
-        os.system('clear')
-        print("angle of the best v: "+str(angle))
-        print("angle of the model: "+str(env.car.ori))
+
+        # print("angle of the best v: "+str(angle))
+        # print("angle of the model: "+str(env.car.ori))
 
         if diff > 0.05:
             return  [0, 1] # Steer Left
@@ -79,16 +89,16 @@ class MathModel():
         else:
             return [0, 0]  # Stay Straight
         
-       
-
     
-    def new_ray_intersection(self,env,angle_of_view,all_rays,visualize=False):
+    
+    
+    def new_ray_intersection(self,env,angle_of_view,all_rays):
         angle_step=angle_of_view/(all_rays-1)
         max1=env.level.proportions[0]
         max2=env.level.proportions[1]
         x=env.car.x
         y=env.car.y
-        ori = math.atan2(env.car.vy, env.car.vx)
+        ori = self.v_ori
         walls=env.level.walls
 
         rays = []
@@ -126,7 +136,7 @@ class MathModel():
         max2 = env.level.proportions[1]
         x = env.car.x
         y = env.car.y
-        ori = math.atan2(env.car.vy, env.car.vx)
+        ori = self.v_ori
         walls = env.level.walls
 
         rays = []
@@ -191,30 +201,25 @@ class MathModel():
         return distances
 
     
-    def result(self,env,visualize=False):
+    def result(self,env,visualize_gb=False,visualize_lr=False):
         self.v_ori = math.atan2(env.car.vy, env.car.vx)
-        
         self.v=math.hypot(env.car.vx,env.car.vy)
-        if(abs(self.v)<5):
-            self.v_ori=env.car.ori
+        print(self.v/self.pixel_per_meter)
+        self.reset_rays(env,visualize_lr)
+        return self.gb_decider(env)+self.lr_decider(env)
 
-        # print([self.last_ori,self.v_ori])
-        # os.system('clear')
-        print("Speed: "+str(self.v/self.pixel_per_meter*3.6)+"km/h")
-        self.reset_rays(env,visualize)
-        decision=self.gb_decide(env,visualize)+self.lr_decide(env,visualize)
-        self.last_ori=self.v_ori
+    def run_in_environment(self, env, visualize=True,visualize_gb=True,visualize_lr=True, maxsteps=500,label=69):
         
-        return decision
-    def run_in_environment(self, env, visualize=True, maxsteps=500):
-        self.last_ori=env.car.ori
+
         if visualize:
             env.start_pygame()
+        else:
+            visualize_gb=False
+            visualize_lr=False
 
         total_reward = 0
         running = True
-
-        while running:
+        for i in tqdm(range(maxsteps), desc="Applying math to "+str(label)+". level"):
             if visualize:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
@@ -226,11 +231,14 @@ class MathModel():
 
             # Move state to device
             
+            # os.system('clear')
+            
 
             # Move actions back to CPU for compatibility with environment
-            chosen_actions = self.result(env,visualize)
+            chosen_actions = self.result(env,visualize_gb,visualize_lr)
 
             reward, done, steps = env.step(chosen_actions)
+            # print(env.steps)
             total_reward += reward
 
             if visualize:
@@ -238,6 +246,7 @@ class MathModel():
 
             if done or steps >= maxsteps:
                 running = False
+                break
         env.close()
         return total_reward
     

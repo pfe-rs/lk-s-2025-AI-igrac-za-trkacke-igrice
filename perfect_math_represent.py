@@ -13,6 +13,7 @@ class MathModel():
         self.ray_values_gb=None
         self.ray_values_lr=None
         self.kz=kz
+        self.kn=kn
         self.side_offset = side_offset
         self.v_ori=None
         self.v=None
@@ -37,7 +38,7 @@ class MathModel():
             vxao=vx * math.cos(angle)
             vyao=vy * math.sin(angle)
 
-            sbz=(vxao**2+vyao**2)*(1+self.kz)/(2*g*kb*env.car.ni)+max(env.car.length,env.car.width)
+            sbz=(vxao**2+vyao**2)*(1+self.kz)/(2*g*kb*env.car.ni)+max(env.car.length,env.car.width)+10
             if visualize:
                 # line=Line(env.car.x,env.car.y,env.car.x+math.cos(angle)*self.ray_values_gb[i],env.car.y+math.sin(angle)*self.ray_values_gb[i])
                 # line.draw(env.screen,([255,255,255]))
@@ -46,21 +47,21 @@ class MathModel():
                 line.draw(env.screen,([100,0,100]))
             brake_lenghts.append(sbz)
         
-        # for i in range(len(brake_lenghts)):
-        #     angle = start_ori+ i * self.angle_step_gb
-        #     sbz=brake_lenghts[i]
-        #     if(self.kn*(sbz)>=self.ray_values_gb[i]):
-        #         return [0,1]
+        for i in range(len(brake_lenghts)):
+            angle = start_ori+ i * self.angle_step_gb
+            sbz=brake_lenghts[i]
+            if(self.kn*(sbz)>=self.ray_values_gb[i]):
+                return [0,1]
         
         for i in range(len(brake_lenghts)):
             angle = start_ori+ i * self.angle_step_gb
             sbz=brake_lenghts[i]
-            if(sbz>self.ray_values_gb[i]):
-                return [0,1]
+            if(sbz<self.ray_values_gb[i]):
+                return [1,0]
 
         
             
-        return [1,0]
+        return [0,0]
         
     def lr_decide(self, env,visualize=False):
         max_index = self.ray_values_lr.index(max(self.ray_values_lr))  # Ray with most space
@@ -178,15 +179,15 @@ class MathModel():
             min_distance = ray_length
 
             for ray in [original_ray, left_ray, right_ray]:
-                    for wall in walls:
-                        if ray.is_intersecting(wall):
-                            intersection = ray.intersection_point(wall)
-                            if intersection:
-                                dx = intersection[0] - x
-                                dy = intersection[1] - y
-                                distance = math.hypot(dx, dy)
-                                if distance < min_distance:
-                                    min_distance = distance
+                for wall in walls:
+                    if ray.is_intersecting(wall):
+                        intersection = ray.intersection_point(wall)
+                        if intersection:
+                            dx = intersection[0] - x
+                            dy = intersection[1] - y
+                            distance = math.hypot(dx, dy)
+                            if distance < min_distance:
+                                min_distance = distance
 
 
                 # line=Line(env.car.x,env.car.y,env.car.x+math.cos(angle)*min_distance,env.car.y+math.sin(angle)*min_distance)

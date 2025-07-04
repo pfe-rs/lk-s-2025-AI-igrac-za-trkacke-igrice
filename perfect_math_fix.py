@@ -9,12 +9,13 @@ import copy
 
 
 class MathModel():
-    def __init__(self,kz,side_offset,pixel_per_meter=1):
+    def __init__(self,kz,kn,side_offset,pixel_per_meter=1):
         self.angle_step_gb=angle_of_view_gb/(all_rays_gb-1)
         self.angle_step_lr=angle_of_view_lr/(all_rays_lr-1)
         self.ray_values_gb=None
         self.ray_values_lr=None
         self.kz=kz
+        self.kn=kn
         self.side_offset = side_offset
         self.v_ori=None
         self.v=None
@@ -34,6 +35,7 @@ class MathModel():
         ori = self.v_ori
         start_ori=ori-angle_of_view_gb/2
         brake_lenghts=[]
+        friction_lengths=[]
         for i in range(all_rays_gb):
             angle = start_ori+ i * self.angle_step_gb
             # speed_along_ori = vx * math.cos(angle) + vy * math.sin(angle)
@@ -41,38 +43,39 @@ class MathModel():
             vyao=vy * math.sin(angle)
 
             # sbz=(vxao**2+vyao**2)*(1+self.kz)/(2*g*kb*env.car.ni)+max(env.car.length,env.car.width)
-            sbz=(vxao**2+vyao**2)*(1+self.kz)/(2*g*kb*env.car.bni)+1
-            # if visualize:
+            sbz=(vxao**2+vyao**2)*(1+self.kz)/(2*g*kb*env.car.bni)+max(env.car.length,env.car.width)
+            # sfz=
+            if visualize:
             #     # line=Line(env.car.x,env.car.y,env.car.x+math.cos(angle)*self.ray_values_gb[i],env.car.y+math.sin(angle)*self.ray_values_gb[i])
             #     # line.draw(env.screen,([255,255,255]))
 
-            #     line=Line(env.car.x,env.car.y,env.car.x+math.cos(angle)*sbz,env.car.y+math.sin(angle)*sbz)
-            #     line.draw(env.screen,([100,0,100]))
+                line=Line(env.car.x,env.car.y,env.car.x+math.cos(angle)*sbz,env.car.y+math.sin(angle)*sbz)
+                line.draw(env.screen,([100,0,100]))
             brake_lenghts.append(sbz)
         
-        # for i in range(len(brake_lenghts)):
-        #     angle = start_ori+ i * self.angle_step_gb
-        #     sbz=brake_lenghts[i]
-        #     if(self.kn*(sbz)>=self.ray_values_gb[i]):
-        #         return [0,1]
-        print(brake_lenghts)
+        for i in range(len(brake_lenghts)):
+            angle = start_ori+ i * self.angle_step_gb
+            sbz=brake_lenghts[i]
+            if(self.kn*(sbz)>=self.ray_values_gb[i]):
+                return [0,1]
+        # print(brake_lenghts)
         for i in range(len(brake_lenghts)):
             # env.car.color=([255,0,0])
-            print("JENASFIBAIBAIOBOIWBFOIABIOWBB")
+            # print("JENASFIBAIBAIOBOIWBFOIABIOWBB")
             angle = start_ori+ i * self.angle_step_gb
             sbz=brake_lenghts[i]
 
-            line=Line(env.car.x,env.car.y,env.car.x+math.cos(angle)*self.ray_values_gb[i],env.car.y+math.sin(angle)*self.ray_values_gb[i])
-            line.draw(env.screen,([255,255,255]))
+            # line=Line(env.car.x,env.car.y,env.car.x+math.cos(angle)*self.ray_values_gb[i],env.car.y+math.sin(angle)*self.ray_values_gb[i])
+            # line.draw(env.screen,([255,255,255]))
 
-            line=Line(env.car.x,env.car.y,env.car.x+math.cos(angle)*sbz,env.car.y+math.sin(angle)*sbz)
-            line.draw(env.screen,([100,0,100]))
-            if(sbz>self.ray_values_gb[i]):
-                return [0,1]
+            # line=Line(env.car.x,env.car.y,env.car.x+math.cos(angle)*sbz,env.car.y+math.sin(angle)*sbz)
+            # line.draw(env.screen,([100,0,100]))
+            if(sbz<self.ray_values_gb[i]):
+                return [1,0]
 
         
             
-        return [1,0]
+        return [0,0]
         
     def lr_decide(self, env,visualize=False):
         max_index = self.ray_values_lr.index(max(self.ray_values_lr))  # Ray with most space
@@ -230,16 +233,16 @@ class MathModel():
         
         self.v=math.hypot(env.car.vx,env.car.vy)
         if(abs(self.v)<5):
-            self.v_ori=self.last_ori
+            self.v_ori=env.car.ori
 
         # print([self.last_ori,self.v_ori])
         # os.system('clear')
         print("Speed: "+str(self.v/self.pixel_per_meter*3.6)+"km/h")
         self.reset_rays(env,visualize_lr)
-        decidion=self.gb_decide(env,visualize_gb)+self.lr_decide(env,visualize_lr)
+        decision=self.gb_decide(env,visualize_gb)+self.lr_decide(env,visualize_lr)
         self.last_ori=self.v_ori
         
-        return decidion
+        return decision
 
     def run_in_environment(self, env, visualize=True,visualize_gb=True,visualize_lr=True, maxsteps=500,label=69):
         self.last_ori=env.car.ori
